@@ -32,6 +32,11 @@ interface Technician {
       </button>
     </div>
 
+    <mat-form-field appearance="outline" class="search-bar">
+  <mat-label>Search</mat-label>
+  <input matInput (input)="applyFilter($event)" placeholder="Search technicians...">
+  <mat-icon matSuffix>search</mat-icon>
+</mat-form-field>
     <mat-card>
       <mat-table [dataSource]="dataSource" matSort>
 
@@ -90,6 +95,11 @@ interface Technician {
     mat-header-cell, mat-cell {
       padding: 8px 16px;
     }
+    .search-bar {
+  width: 300px;
+  margin-bottom: 16px;
+}
+
     .status-active {
       color: #2e7d32;
       font-weight: 600;
@@ -118,10 +128,26 @@ export class TechniciansListComponent implements OnInit, AfterViewInit {
   ngOnInit() {
     this.loadPage();
   }
+  applyFilter(event: any) {
+  const value = event.target.value.trim().toLowerCase();
+  this.dataSource.filter = value;
+}
+
 
   ngAfterViewInit() {
     this.dataSource.paginator = this.paginator;
     this.dataSource.sort = this.sort;
+
+  this.dataSource.filterPredicate = (data: Technician, filter: string) => {
+    return (
+      data.firstName.toLowerCase().includes(filter) ||
+      data.lastName.toLowerCase().includes(filter) ||
+      (data.email?.toLowerCase().includes(filter) ?? false) ||
+      (data.phone?.toLowerCase().includes(filter) ?? false) ||
+      (data.certifications?.toLowerCase().includes(filter) ?? false)
+    );
+  };
+
   }
 
   loadPage() {

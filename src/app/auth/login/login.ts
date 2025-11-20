@@ -3,37 +3,71 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth-service';
+import { MATERIAL_IMPORTS } from '../../material-imports';
+
+
+
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ...MATERIAL_IMPORTS],
   template: `
-    <div class="min-h-screen flex items-center justify-center bg-slate-900 text-white">
-      <div class="w-full max-w-md bg-slate-800 rounded-2xl p-8 shadow-lg">
-        <h1 class="text-2xl font-semibold mb-6 text-center">A3 FSM Login</h1>
+    <div class="login-container">
+      <mat-card class="login-card">
 
-        <form (ngSubmit)="onSubmit()">
-          <label class="block mb-3 text-sm">
-            Email
-            <input [(ngModel)]="email" name="email" type="email"
-                   class="mt-1 w-full px-3 py-2 rounded-md text-black" required />
-          </label>
+        <h1 class="title">A3 FSM Login</h1>
 
-          <label class="block mb-6 text-sm">
-            Password
-            <input [(ngModel)]="password" name="password" type="password"
-                   class="mt-1 w-full px-3 py-2 rounded-md text-black" required />
-          </label>
+        <form (ngSubmit)="onSubmit()" class="form">
 
-          <button type="submit"
-                  class="w-full py-2 rounded-md bg-indigo-500 hover:bg-indigo-600 font-medium">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Email</mat-label>
+            <input matInput [(ngModel)]="email" name="email" type="email" required>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Password</mat-label>
+            <input matInput [(ngModel)]="password" name="password" type="password" required>
+          </mat-form-field>
+
+          <button mat-raised-button color="primary" class="full-width">
             Sign In
           </button>
+
         </form>
-      </div>
+
+      </mat-card>
     </div>
-  `
+  `,
+  styles: [`
+    .login-container {
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #f5f5f5;
+    }
+
+    .login-card {
+      padding: 24px;
+      width: 380px;
+    }
+
+    .title {
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    .full-width {
+      width: 100%;
+    }
+
+    .form {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+  `]
 })
 export class LoginComponent {
   email = '';
@@ -44,10 +78,16 @@ export class LoginComponent {
     private router: Router
   ) {}
 
-  onSubmit() {
-    this.auth.login({ email: this.email, password: this.password }).subscribe({
-      next: () => this.router.navigate(['/']),
-      error: (err) => console.error('Login failed', err)
-    });
-  }
+onSubmit() {
+  const loginPayload = {
+    email: this.email,   // backend likely expects "username"
+    password: this.password
+  };
+
+  this.auth.login(loginPayload).subscribe({
+    next: () => this.router.navigate(['/dashboard']),
+    error: (err) => console.error('Login failed', err)
+  });
+}
+
 }

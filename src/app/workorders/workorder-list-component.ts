@@ -28,7 +28,11 @@ interface WorkOrder {
   imports: [CommonModule, ...MATERIAL_IMPORTS],
   template: `
     <div class="header-row">
-      <h2>Work Orders</h2>
+     <mat-form-field appearance="outline" class="search-bar">
+  <mat-label>Search Work Orders</mat-label>
+  <input matInput (input)="applyFilter($event)" placeholder="Search by client, address, status...">
+  <mat-icon matSuffix>search</mat-icon>
+</mat-form-field>
       <button mat-fab color="primary" (click)="openAddDialog()">
         <mat-icon>add</mat-icon>
       </button>
@@ -118,6 +122,15 @@ export class WorkordersListComponent implements OnInit, AfterViewInit {
   }
 
   ngAfterViewInit() {
+
+      this.dataSource.filterPredicate = (data: WorkOrder, filter: string) => {
+    return (
+      data.clientName.toLowerCase().includes(filter) ||
+      data.address.toLowerCase().includes(filter) ||
+      data.status.toLowerCase().includes(filter) ||
+      (data.priority?.toLowerCase().includes(filter) ?? false)
+    );
+  };
     this.dataSource.paginator = this.paginator;
     this.dataSource.sort = this.sort;
   }
@@ -134,6 +147,11 @@ export class WorkordersListComponent implements OnInit, AfterViewInit {
         error: err => console.error('Failed to load workorders', err)
       });
   }
+  applyFilter(event: any) {
+  const value = event.target.value.trim().toLowerCase();
+  this.dataSource.filter = value;
+}
+
 
   openAddDialog() {
   const ref = this.dialog.open(AddWorkOrderDialogComponent, {

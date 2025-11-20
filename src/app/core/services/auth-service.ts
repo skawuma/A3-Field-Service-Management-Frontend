@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { tap } from 'rxjs';
+import { environment } from '../../../environments/environment.development';
 
 interface LoginRequest {
   email: string;
@@ -13,22 +14,35 @@ interface AuthResponse {
   role: string;
 }
 
+interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly baseUrl = 'http://localhost:8080/api/auth';
+   private readonly baseUrl = `${environment.apiUrl}/auth`; // 👈 USE ENV
   private readonly tokenKey = 'a3fsm_token';
   private readonly refreshKey = 'a3fsm_refresh';
 
   constructor(private http: HttpClient) {}
 
-  login(payload: LoginRequest) {
-    return this.http.post<AuthResponse>(`${this.baseUrl}/login`, payload).pipe(
-      tap(res => {
-        localStorage.setItem(this.tokenKey, res.accessToken);
-        localStorage.setItem(this.refreshKey, res.refreshToken);
-      })
-    );
-  }
+login(payload: { email?: string; username?: string; password: string }) {
+  return this.http.post<AuthResponse>(`${this.baseUrl}/login`, {
+    email: payload.email,  // map email → username
+    password: payload.password
+  })
+  .pipe(
+    tap(res => {
+      localStorage.setItem(this.tokenKey, res.accessToken);
+      localStorage.setItem(this.refreshKey, res.refreshToken);
+      
+    })
+  );
+  
+}
+
 
   logout() {
     localStorage.removeItem(this.tokenKey);
@@ -42,7 +56,7 @@ private isBrowser(): boolean {
 
 getToken(): string | null {
   if (!this.isBrowser()) return null;
-  return localStorage.getItem('token');
+  return localStorage.getItem(this.tokenKey);
 }
 
 isAuthenticated(): boolean {
