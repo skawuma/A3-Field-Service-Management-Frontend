@@ -4,10 +4,12 @@ import { MATERIAL_IMPORTS } from '../material-imports';
 import { MatDialog } from '@angular/material/dialog';
 import { AddWorkOrderDialogComponent } from './add-workorder-dialog.component';
 
+
 import { MatTableDataSource } from '@angular/material/table';
 import { MatPaginator } from '@angular/material/paginator';
 import { MatSort } from '@angular/material/sort';
 import { ApiService, PageResponse } from '../core/services/api-service';
+import { AssignTechnicianDialogComponent } from './assign-technician-dialog.component';
 
 interface WorkOrder {
   id: number;
@@ -60,6 +62,16 @@ interface WorkOrder {
           <mat-cell *matCellDef="let w"> {{ w.priority || '-' }} </mat-cell>
         </ng-container>
 
+        <ng-container matColumnDef="actions">
+  <mat-header-cell *matHeaderCellDef> Actions </mat-header-cell>
+  <mat-cell *matCellDef="let w">
+    <button mat-icon-button color="primary" (click)="openAssignDialog(w)">
+      <mat-icon>person_add</mat-icon>
+    </button>
+  </mat-cell>
+</ng-container>
+
+
         <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
         <mat-row *matRowDef="let row; columns: displayedColumns;"></mat-row>
 
@@ -89,7 +101,8 @@ interface WorkOrder {
   `]
 })
 export class WorkordersListComponent implements OnInit, AfterViewInit {
-  displayedColumns: string[] = ['clientName', 'address', 'status', 'scheduledDate', 'priority'];
+ displayedColumns: string[] = ['clientName', 'address', 'status', 'scheduledDate', 'priority', 'actions'];
+
   dataSource = new MatTableDataSource<WorkOrder>([]);
   page = 0;
   size = 10;
@@ -129,6 +142,18 @@ export class WorkordersListComponent implements OnInit, AfterViewInit {
 
   ref.afterClosed().subscribe(result => {
     if (result === 'created') {
+      this.loadPage();
+    }
+  });
+}
+openAssignDialog(workorder: WorkOrder) {
+  const ref = this.dialog.open(AssignTechnicianDialogComponent, {
+    width: '420px',
+    data: { workorder }
+  });
+
+  ref.afterClosed().subscribe(result => {
+    if (result === 'assigned') {
       this.loadPage();
     }
   });

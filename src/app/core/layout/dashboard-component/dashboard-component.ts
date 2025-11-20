@@ -1,118 +1,140 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-
-import { ApiService } from '../../services/api-service';
 import { MATERIAL_IMPORTS } from '../../../material-imports';
+import { ApiService } from '../../services/api-service';
+import { NotificationService } from '../../services/notification.service';
 
+
+interface DashboardSummary {
+  totalTechnicians: number;
+  totalWorkOrders: number;
+  openWorkOrders: number;
+  inProgressWorkOrders: number;
+  unassignedWorkOrders: number;
+  scheduledToday: number;
+}
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
   imports: [CommonModule, ...MATERIAL_IMPORTS],
   template: `
-    <div class="dashboard-container">
-      <h2 class="title">Dashboard</h2>
+    <h2 class="mb-4">Dashboard</h2>
 
-      <div class="cards-grid">
-        <mat-card class="dashboard-card">
-          <mat-card-title>Total Technicians</mat-card-title>
-          <mat-card-content>
-            <h1>{{ totalTechnicians }}</h1>
-          </mat-card-content>
-        </mat-card>
+    <div *ngIf="loading" class="loading-container">
+      <mat-progress-spinner mode="indeterminate"></mat-progress-spinner>
+    </div>
 
-        <mat-card class="dashboard-card">
-          <mat-card-title>Active Technicians</mat-card-title>
-          <mat-card-content>
-            <h1>{{ activeTechnicians }}</h1>
-          </mat-card-content>
-        </mat-card>
+    <div *ngIf="!loading" class="grid-container">
 
-        <mat-card class="dashboard-card">
-          <mat-card-title>Total Work Orders</mat-card-title>
-          <mat-card-content>
-            <h1>{{ totalWorkOrders }}</h1>
-          </mat-card-content>
-        </mat-card>
+      <mat-card class="stat-card primary">
+        <mat-icon class="icon">groups</mat-icon>
+        <div class="value">{{ summary?.totalTechnicians }}</div>
+        <div class="label">Technicians</div>
+      </mat-card>
 
-        <mat-card class="dashboard-card">
-          <mat-card-title>Open Work Orders</mat-card-title>
-          <mat-card-content>
-            <h1>{{ openWorkOrders }}</h1>
-          </mat-card-content>
-        </mat-card>
-      </div>
+      <mat-card class="stat-card accent">
+        <mat-icon class="icon">assignment</mat-icon>
+        <div class="value">{{ summary?.totalWorkOrders }}</div>
+        <div class="label">Work Orders</div>
+      </mat-card>
+
+      <mat-card class="stat-card warn">
+        <mat-icon class="icon">error_outline</mat-icon>
+        <div class="value">{{ summary?.openWorkOrders }}</div>
+        <div class="label">Open</div>
+      </mat-card>
+
+      <mat-card class="stat-card in-progress">
+        <mat-icon class="icon">autorenew</mat-icon>
+        <div class="value">{{ summary?.inProgressWorkOrders }}</div>
+        <div class="label">In Progress</div>
+      </mat-card>
+
+      <mat-card class="stat-card unassigned">
+        <mat-icon class="icon">person_off</mat-icon>
+        <div class="value">{{ summary?.unassignedWorkOrders }}</div>
+        <div class="label">Unassigned</div>
+      </mat-card>
+
+      <mat-card class="stat-card today">
+        <mat-icon class="icon">event</mat-icon>
+        <div class="value">{{ summary?.scheduledToday }}</div>
+        <div class="label">Scheduled Today</div>
+      </mat-card>
+
     </div>
   `,
   styles: [`
-    .dashboard-container {
-      padding: 16px;
+    .grid-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 16px;
     }
 
-    .title {
-      margin-bottom: 20px;
-      font-size: 24px;
+    .stat-card {
+      padding: 20px;
+      text-align: center;
+      color: white;
+    }
+
+    .icon {
+      font-size: 40px;
+      margin-bottom: 8px;
+    }
+
+    .value {
+      font-size: 32px;
       font-weight: 600;
     }
 
-    .cards-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-      gap: 20px;
+    .label {
+      font-size: 14px;
+      opacity: 0.8;
     }
 
-    .dashboard-card {
-      padding: 16px;
-      text-align: center;
-    }
+    .primary { background: #3f51b5; }
+    .accent { background: #e91e63; }
+    .warn { background: #f44336; }
+    .in-progress { background: #009688; }
+    .unassigned { background: #607d8b; }
+    .today { background: #8bc34a; }
 
-    mat-card-title {
-      font-size: 16px;
-    }
-
-    h1 {
-      margin: 0;
-      font-size: 40px;
-      font-weight: 700;
-      text-align: center;
+    .loading-container {
+      display: flex;
+      justify-content: center;
+      padding: 40px;
     }
   `]
 })
 export class DashboardComponent implements OnInit {
 
-  totalTechnicians = 0;
-  activeTechnicians = 0;
-
-  totalWorkOrders = 0;
-  openWorkOrders = 0;
+  summary: DashboardSummary | null = null;
+  loading = true;
 
   constructor(
-    private api: ApiService
+    private api: ApiService,
+    private notify: NotificationService
   ) {}
 
   ngOnInit() {
-    this.loadTechnicians();
-    this.loadWorkOrders();
+    this.loadSummary();
+
+    // Optional: Auto refresh every minute
+    // setInterval(() => this.loadSummary(), 60000);
   }
 
-  loadTechnicians() {
-    // this.api.getPage<any>('technicians', 0, 1000).subscribe({
-    //   next: (res) => {
-    //     this.totalTechnicians = res.totalElements;
-    //     this.activeTechnicians = res.content.filter((t: any) => t.status === 'ACTIVE').length;
-    //   },
-    //   error: (err) => console.error('Failed to load technicians', err)
-    // });
-  }
-
-  loadWorkOrders() {
-    // this.api.getPage<any>('workorders', 0, 1000).subscribe({
-    //   next: (res) => {
-    //     this.totalWorkOrders = res.totalElements;
-    //     this.openWorkOrders = res.content.filter((wo: any) => wo.status === 'OPEN').length;
-    //   },
-    //   error: (err) => console.error('Failed to load work orders', err)
-    // });
+  loadSummary() {
+    this.api.get<DashboardSummary>('dashboard/summary')
+      .subscribe({
+        next: res => {
+          this.summary = res;
+          this.loading = false;
+        },
+        error: () => {
+          this.loading = false;
+          this.notify.error('Failed to load dashboard data');
+        }
+      });
   }
 }
-

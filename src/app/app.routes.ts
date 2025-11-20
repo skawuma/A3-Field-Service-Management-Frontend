@@ -13,12 +13,12 @@ export const routes: Routes = [ {
     path: '',
     canActivate: [AuthGuard],
     children: [
-      // { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
-      // {
-      //   path: 'dashboard',
-      //   loadComponent: () =>
-      //     import('./core/layout/dashboard.component').then(m => m.DashboardComponent)
-      // },
+      { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+      {
+        path: 'dashboard',
+        loadComponent: () =>
+          import('./core/layout/dashboard-component/dashboard-component').then(m => m.DashboardComponent)
+      },
       {
         path: 'technicians',
         children: techniciansRoutes
