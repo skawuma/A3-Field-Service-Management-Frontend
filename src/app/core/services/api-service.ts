@@ -20,17 +20,31 @@ export class ApiService {
   constructor(private http: HttpClient) {}
 
   /** GET paged results */
-  getPage<T>(path: string, page: number, size: number, sortBy?: string): Observable<PageResponse<T>> {
-    let params = new HttpParams()
-      .set('page', page)
-      .set('size', size);
+getPage<T>(path: string, page: number, size: number, sortBy?: string, extraParams?: any): Observable<PageResponse<T>> {
+  let params = new HttpParams()
+    .set('page', page)
+    .set('size', size);
 
-    if (sortBy) {
-      params = params.set('sortBy', sortBy);
-    }
-
-    return this.http.get<PageResponse<T>>(`${this.baseUrl}/${path}`, { params });
+  if (sortBy) {
+    params = params.set('sortBy', sortBy);
   }
+
+  if (extraParams) {
+    Object.keys(extraParams).forEach(key => {
+      if (extraParams[key] !== null && extraParams[key] !== '') {
+        params = params.set(key, extraParams[key]);
+      }
+    });
+  }
+
+  return this.http.get<PageResponse<T>>(`${this.baseUrl}/${path}`, { params });
+}
+
+getPageAdvanced<T>(path: string, params: any) {
+  return this.http.get<PageResponse<T>>(`${this.baseUrl}/${path}`, { params });
+}
+
+
 
   /** GET single or list (non-paginated) */
   get<T>(path: string): Observable<T> {
