@@ -8,6 +8,7 @@ import { MatSort } from '@angular/material/sort';
 import { MatDialog } from '@angular/material/dialog';
 import { ApiService, PageResponse } from '../core/services/api-service';
 import { AddTechnicianDialogComponent } from './add-technician-dialog.component';
+import { EditTechnicianDialogComponent } from './edit-technician-dialog.component';
 
 interface Technician {
   id: number;
@@ -112,6 +113,21 @@ interface Technician {
               </span>
             </mat-cell>
           </ng-container>
+
+          <!-- Actions -->
+<ng-container matColumnDef="actions">
+  <mat-header-cell *matHeaderCellDef>Actions</mat-header-cell>
+  <mat-cell *matCellDef="let t">
+    <button
+      mat-icon-button
+      color="primary"
+      matTooltip="Edit technician"
+      (click)="openEditDialog(t)">
+      <mat-icon>edit</mat-icon>
+    </button>
+  </mat-cell>
+</ng-container>
+
 
           <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
           <mat-row
@@ -222,8 +238,8 @@ interface Technician {
   `]
 })
 export class TechniciansListComponent implements OnInit, AfterViewInit {
+displayedColumns: string[] = ['name', 'phone', 'email', 'certifications', 'status', 'actions'];
 
-  displayedColumns: string[] = ['name', 'phone', 'email', 'certifications', 'status'];
   dataSource = new MatTableDataSource<Technician>([]);
 
   page = 0;
@@ -293,6 +309,22 @@ export class TechniciansListComponent implements OnInit, AfterViewInit {
         }
       });
   }
+
+
+
+  openEditDialog(technician: Technician) {
+  const ref = this.dialog.open(EditTechnicianDialogComponent, {
+    width: '460px',
+    data: { technician }
+  });
+
+  ref.afterClosed().subscribe(result => {
+    if (result === 'updated' || result === 'deleted') {
+      this.page = 0;
+      this.loadPage();
+    }
+  });
+}
 
   onPageChange(event: any) {
     this.page = event.pageIndex;
