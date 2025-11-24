@@ -62,18 +62,21 @@
           },
           "defaultConfiguration": "production"
         },
-        "serve": {
-          "builder": "@angular/build:dev-server",
-          "configurations": {
-            "production": {
-              "buildTarget": "a3-fsm-frontend:build:production"
-            },
-            "development": {
-              "buildTarget": "a3-fsm-frontend:build:development"
-            }
-          },
-          "defaultConfiguration": "development"
-        },
+"serve": {
+  "builder": "@angular/build:dev-server",
+  "configurations": {
+    "development": {
+      "buildTarget": "a3-fsm-frontend:build:development"
+    },
+    "production": {
+      "buildTarget": "a3-fsm-frontend:build:production"
+    }
+  },
+  "defaultConfiguration": "development"
+}
+
+,
+
         "extract-i18n": {
           "builder": "@angular/build:extract-i18n"
         },

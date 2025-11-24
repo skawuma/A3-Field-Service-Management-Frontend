@@ -3,43 +3,38 @@ import { authRoutes } from './auth/auth.routes';
 import { AuthGuard } from './core/guards/auth-guard';
 import { techniciansRoutes } from './technicians/technicians.routes';
 import { workordersRoutes } from './workorders/workorders.routes';
-import { MainLayoutComponent } from './core/layout/main-layout'; // <-- IMPORTANT
+import { MainLayoutComponent } from './core/layout/main-layout';
 
 export const routes: Routes = [
 
-  // --- Public Routes (Login)
+  // --- Public Root Redirect
+  {
+    path: '',
+    redirectTo: 'auth/login',
+    pathMatch: 'full'
+  },
+
+  // --- Public routes (Login Flow)
   {
     path: 'auth',
     children: authRoutes
   },
 
-  // --- Protected Routes (inside Main Layout)
+  // --- Protected Routes
   {
     path: '',
-    component: MainLayoutComponent,   // <-- THIS FIXES YOUR BOOTSTRAP ERROR
+    component: MainLayoutComponent,
     canActivate: [AuthGuard],
     children: [
-      { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
-
-      {
-        path: 'dashboard',
-        loadComponent: () =>
+      { path: 'dashboard', loadComponent: () =>
           import('./core/layout/dashboard-component/dashboard-component')
             .then(m => m.DashboardComponent)
       },
-
-      {
-        path: 'technicians',
-        children: techniciansRoutes
-      },
-
-      {
-        path: 'workorders',
-        children: workordersRoutes
-      }
+      { path: 'technicians', children: techniciansRoutes },
+      { path: 'workorders', children: workordersRoutes }
     ]
   },
 
   // --- Fallback
-  { path: '**', redirectTo: '' }
+  { path: '**', redirectTo: 'auth/login' }
 ];

@@ -15,67 +15,88 @@ import { ApiService } from '../core/services/api-service';
     <h2 mat-dialog-title>Add Technician</h2>
 
     <form [formGroup]="form" (ngSubmit)="onSubmit()" mat-dialog-content>
+
+      <!-- FIRST NAME -->
       <mat-form-field appearance="outline" class="full-width">
         <mat-label>First Name</mat-label>
         <input matInput formControlName="firstName">
-        <mat-error *ngIf="form.controls['firstName'].invalid">
-          First name is required
+        <mat-error *ngIf="form.controls['firstName'].hasError('required')">
+          First name is required.
         </mat-error>
       </mat-form-field>
 
+      <!-- LAST NAME -->
       <mat-form-field appearance="outline" class="full-width">
         <mat-label>Last Name</mat-label>
         <input matInput formControlName="lastName">
-        <mat-error *ngIf="form.controls['lastName'].invalid">
-          Last name is required
+        <mat-error *ngIf="form.controls['lastName'].hasError('required')">
+          Last name is required.
         </mat-error>
       </mat-form-field>
 
+      <!-- PHONE -->
       <mat-form-field appearance="outline" class="full-width">
         <mat-label>Phone</mat-label>
-        <input matInput formControlName="phone">
+        <input matInput formControlName="phone" placeholder="Optional">
+        <mat-hint>Format: ###-###-####</mat-hint>
       </mat-form-field>
 
+      <!-- EMAIL -->
       <mat-form-field appearance="outline" class="full-width">
         <mat-label>Email</mat-label>
         <input matInput formControlName="email" type="email">
+        <mat-error *ngIf="form.controls['email'].hasError('email')">
+          Enter a valid email.
+        </mat-error>
       </mat-form-field>
 
+      <!-- CERTIFICATIONS -->
       <mat-form-field appearance="outline" class="full-width">
         <mat-label>Certifications</mat-label>
-        <input matInput formControlName="certifications">
+        <input matInput formControlName="certifications" placeholder="Optional (e.g., A+, Net+)">
       </mat-form-field>
 
+      <!-- ACTION BAR -->
       <div mat-dialog-actions align="end">
         <button mat-button type="button" (click)="dialogRef.close()">Cancel</button>
-        <button mat-raised-button color="primary" type="submit" [disabled]="form.invalid || loading">
+
+        <button mat-raised-button color="primary"
+                type="submit"
+                [disabled]="form.invalid || loading">
+
           <mat-progress-spinner
             *ngIf="loading"
             mode="indeterminate"
-            diameter="18">
+            diameter="18"
+            class="spinner">
           </mat-progress-spinner>
+
           <span *ngIf="!loading">Save</span>
         </button>
       </div>
     </form>
   `,
   styles: [`
-    .full-width { width: 100%; }
     mat-dialog-content {
       display: flex;
       flex-direction: column;
-      gap: 12px;
-      min-width: 300px;
+      gap: 14px;
+      min-width: 360px;
     }
+
+    .full-width { width: 100%; }
+
     [mat-dialog-actions] {
-      margin-top: 12px;
+      margin-top: 16px;
     }
-    mat-progress-spinner {
+
+    .spinner {
       margin-right: 8px;
     }
   `]
 })
 export class AddTechnicianDialogComponent {
+
   form!: FormGroup;
   loading = false;
 
@@ -89,7 +110,7 @@ export class AddTechnicianDialogComponent {
       firstName: ['', Validators.required],
       lastName: ['', Validators.required],
       phone: [''],
-      email: [''],
+      email: ['', Validators.email],
       certifications: ['']
     });
   }
@@ -98,6 +119,7 @@ export class AddTechnicianDialogComponent {
     if (this.form.invalid) return;
 
     this.loading = true;
+
     this.api.post<any>('technicians', this.form.value).subscribe({
       next: () => {
         this.loading = false;

@@ -20,13 +20,15 @@ export class ApiService {
   constructor(private http: HttpClient) {}
 
   /** GET paged results */
-getPage<T>(path: string, page: number, size: number, sortBy?: string, extraParams?: any): Observable<PageResponse<T>> {
+getPage<T>(path: string, page: number, size: number, sort: string = 'lastName,asc', extraParams?: any): Observable<PageResponse<T>> {
   let params = new HttpParams()
     .set('page', page)
     .set('size', size);
 
-  if (sortBy) {
-    params = params.set('sortBy', sortBy);
+  if (sort) {
+    // params = params.set('sortBy', sortBy);
+    params = params.set('sort', sort);
+
   }
 
   if (extraParams) {

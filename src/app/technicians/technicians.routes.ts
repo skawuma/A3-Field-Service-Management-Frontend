@@ -1,7 +1,12 @@
- import { Routes } from '@angular/router';
-import { TechniciansListComponent } from './technicians-list-component';
-
+import { Routes } from '@angular/router';
 
 export const techniciansRoutes: Routes = [
-  { path: '', component: TechniciansListComponent }
+  {
+    path: '',
+    pathMatch: 'full',
+    loadComponent: () =>
+      import('./technicians-list-component')
+        .then(m => m.TechniciansListComponent)
+  },
+  { path: '**', redirectTo: '' }
 ];

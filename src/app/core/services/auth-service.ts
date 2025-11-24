@@ -14,53 +14,52 @@ interface AuthResponse {
   role: string;
 }
 
-interface LoginRequest {
-  email: string;
-  password: string;
-}
-
-
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-   private readonly baseUrl = `${environment.apiUrl}/auth`; // 👈 USE ENV
+
+  private readonly baseUrl = `${environment.apiUrl}/auth`;
+
   private readonly tokenKey = 'a3fsm_token';
   private readonly refreshKey = 'a3fsm_refresh';
 
   constructor(private http: HttpClient) {}
 
-login(payload: { email?: string; username?: string; password: string }) {
-  return this.http.post<AuthResponse>(`${this.baseUrl}/login`, {
-    email: payload.email,  // map email → username
-    password: payload.password
-  })
-  .pipe(
-    tap(res => {
-      localStorage.setItem(this.tokenKey, res.accessToken);
-      localStorage.setItem(this.refreshKey, res.refreshToken);
-      
-    })
-  );
-  
-}
+  // -------------------------------
+  // LOGIN
+  // -------------------------------
+  login(payload: LoginRequest) {
+    return this.http.post<AuthResponse>(`${this.baseUrl}/login`, payload)
+      .pipe(
+        tap(res => {
+          localStorage.setItem(this.tokenKey, res.accessToken);
+          localStorage.setItem(this.refreshKey, res.refreshToken);
+        })
+      );
+  }
 
-
+  // -------------------------------
+  // LOGOUT
+  // -------------------------------
   logout() {
     localStorage.removeItem(this.tokenKey);
     localStorage.removeItem(this.refreshKey);
   }
 
+  // -------------------------------
+  // TOKEN GETTERS
+  // -------------------------------
+  getToken(): string | null {
+    return localStorage.getItem(this.tokenKey);
+  }
 
-private isBrowser(): boolean {
-  return typeof window !== 'undefined';
-}
+  getRefreshToken(): string | null {
+    return localStorage.getItem(this.refreshKey);
+  }
 
-getToken(): string | null {
-  if (!this.isBrowser()) return null;
-  return localStorage.getItem(this.tokenKey);
-}
-
-isAuthenticated(): boolean {
-  return !!this.getToken();
-}
-  
+  // -------------------------------
+  // AUTH STATE
+  // -------------------------------
+  isAuthenticated(): boolean {
+    return !!this.getToken();
+  }
 }

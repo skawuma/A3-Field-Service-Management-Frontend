@@ -20,43 +20,59 @@ interface Technician {
   template: `
     <h2 mat-dialog-title>Assign Technician</h2>
 
-    <form [formGroup]="form" (ngSubmit)="onSubmit()" mat-dialog-content>
+    <mat-dialog-content class="dialog-body">
 
-      <p class="pb-2">
-        Assign technician to:
-        <strong>{{ data.workorder.clientName }}</strong>
+      <p class="mb-4 text-gray-600">
+        Assigning technician to:
+        <strong class="text-black">{{ data.workorder.clientName }}</strong>
       </p>
 
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Technician</mat-label>
-        <mat-select formControlName="technicianId" required>
-          <mat-option *ngFor="let t of technicians" [value]="t.id">
-            {{ t.firstName }} {{ t.lastName }}
-          </mat-option>
-        </mat-select>
-      </mat-form-field>
+      <form [formGroup]="form">
 
-      <div mat-dialog-actions align="end">
-        <button mat-button type="button" (click)="dialogRef.close()">Cancel</button>
-        <button mat-raised-button color="primary" type="submit" [disabled]="form.invalid || loading">
-          <mat-progress-spinner
-            *ngIf="loading"
-            diameter="18"
-            mode="indeterminate">
-          </mat-progress-spinner>
-          <span *ngIf="!loading">Assign</span>
-        </button>
-      </div>
-    </form>
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Select Technician</mat-label>
+
+          <mat-select formControlName="technicianId" required>
+            <mat-option *ngFor="let t of technicians" [value]="t.id">
+              {{ t.firstName }} {{ t.lastName }}
+            </mat-option>
+          </mat-select>
+
+          <mat-error *ngIf="form.controls['technicianId'].invalid">
+            Technician is required
+          </mat-error>
+        </mat-form-field>
+
+      </form>
+    </mat-dialog-content>
+
+    <mat-dialog-actions align="end">
+      <button mat-button (click)="dialogRef.close()" [disabled]="loading">
+        Cancel
+      </button>
+
+      <button mat-raised-button color="primary" (click)="onSubmit()" [disabled]="form.invalid || loading">
+        <mat-progress-spinner
+          *ngIf="loading"
+          diameter="18"
+          mode="indeterminate"
+          class="mr-2">
+        </mat-progress-spinner>
+
+        <span *ngIf="!loading">Assign</span>
+      </button>
+    </mat-dialog-actions>
   `,
   styles: [`
     .full-width { width: 100%; }
-    .pb-2 { padding-bottom: 8px; }
+    .dialog-body { min-width: 360px; }
+    .mr-2 { margin-right: 8px; }
+    .mb-4 { margin-bottom: 16px; }
   `]
 })
 export class AssignTechnicianDialogComponent implements OnInit {
 
-  form!: FormGroup;   // <-- Only declare here
+  form!: FormGroup;
   technicians: Technician[] = [];
   loading = false;
 
@@ -69,12 +85,10 @@ export class AssignTechnicianDialogComponent implements OnInit {
   ) {}
 
   ngOnInit() {
-    // Initialize form properly
     this.form = this.fb.group({
       technicianId: [null, Validators.required]
     });
 
-    // Load list of technicians
     this.api.getPage<Technician>('technicians', 0, 100).subscribe({
       next: (res) => this.technicians = res.content,
       error: () => this.notify.error('Failed to load technicians')
@@ -83,8 +97,8 @@ export class AssignTechnicianDialogComponent implements OnInit {
 
   onSubmit() {
     if (this.form.invalid) return;
-    this.loading = true;
 
+    this.loading = true;
     const body = { technicianId: this.form.value.technicianId };
 
     this.api.post(`workorders/${this.data.workorder.id}/assign`, body).subscribe({
@@ -100,4 +114,3 @@ export class AssignTechnicianDialogComponent implements OnInit {
     });
   }
 }
-

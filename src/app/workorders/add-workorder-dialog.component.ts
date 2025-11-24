@@ -20,74 +20,89 @@ interface Technician {
   template: `
     <h2 mat-dialog-title>Create Work Order</h2>
 
-    <form [formGroup]="form" (ngSubmit)="onSubmit()" mat-dialog-content>
+    <mat-dialog-content class="dialog-body">
 
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Client Name</mat-label>
-        <input matInput formControlName="clientName">
-        <mat-error *ngIf="form.controls['clientName'].invalid">Required</mat-error>
-      </mat-form-field>
+      <form [formGroup]="form">
 
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Address</mat-label>
-        <input matInput formControlName="address">
-        <mat-error *ngIf="form.controls['address'].invalid">Required</mat-error>
-      </mat-form-field>
+        <!-- Client Name -->
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Client Name *</mat-label>
+          <input matInput formControlName="clientName">
+          <mat-error *ngIf="form.controls['clientName'].invalid">Client name is required</mat-error>
+        </mat-form-field>
 
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Description</mat-label>
-        <textarea matInput formControlName="description" rows="3"></textarea>
-      </mat-form-field>
+        <!-- Address -->
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Address *</mat-label>
+          <input matInput formControlName="address">
+          <mat-error *ngIf="form.controls['address'].invalid">Address is required</mat-error>
+        </mat-form-field>
 
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Assigned Technician</mat-label>
-        <mat-select formControlName="assignedTechId">
-          <mat-option [value]="null">Unassigned</mat-option>
-          <mat-option *ngFor="let t of technicians" [value]="t.id">
-            {{ t.firstName }} {{ t.lastName }}
-          </mat-option>
-        </mat-select>
-      </mat-form-field>
+        <!-- Description -->
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Description</mat-label>
+          <textarea matInput rows="3" formControlName="description"></textarea>
+        </mat-form-field>
 
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Scheduled Date</mat-label>
-        <input matInput [matDatepicker]="picker" formControlName="scheduledDate">
-        <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
-        <mat-datepicker #picker></mat-datepicker>
-      </mat-form-field>
+        <!-- Technician -->
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Assigned Technician</mat-label>
+          <mat-select formControlName="assignedTechId">
+            <mat-option [value]="null">Unassigned</mat-option>
+            <mat-option *ngFor="let t of technicians" [value]="t.id">
+              {{ t.firstName }} {{ t.lastName }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
 
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Priority</mat-label>
-        <mat-select formControlName="priority">
-          <mat-option value="LOW">Low</mat-option>
-          <mat-option value="MEDIUM">Medium</mat-option>
-          <mat-option value="HIGH">High</mat-option>
-          <mat-option value="CRITICAL">Critical</mat-option>
-        </mat-select>
-      </mat-form-field>
+        <!-- Scheduled Date -->
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Scheduled Date</mat-label>
+          <input matInput [matDatepicker]="picker" formControlName="scheduledDate">
+          <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
+          <mat-datepicker #picker></mat-datepicker>
+        </mat-form-field>
 
-      <div mat-dialog-actions align="end">
-        <button mat-button type="button" (click)="dialogRef.close()">Cancel</button>
-        <button mat-raised-button color="primary" type="submit" [disabled]="form.invalid || loading">
-          <mat-progress-spinner
-            *ngIf="loading"
-            diameter="18"
-            mode="indeterminate">
-          </mat-progress-spinner>
-          <span *ngIf="!loading">Save</span>
-        </button>
-      </div>
-    </form>
+        <!-- Priority -->
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Priority</mat-label>
+          <mat-select formControlName="priority">
+            <mat-option value="LOW">Low</mat-option>
+            <mat-option value="MEDIUM">Medium</mat-option>
+            <mat-option value="HIGH">High</mat-option>
+            <mat-option value="CRITICAL">Critical</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+      </form>
+
+    </mat-dialog-content>
+
+    <mat-dialog-actions align="end">
+      <button mat-button (click)="dialogRef.close()" [disabled]="loading">
+        Cancel
+      </button>
+
+      <button mat-raised-button color="primary" (click)="onSubmit()" [disabled]="form.invalid || loading">
+        <mat-progress-spinner
+          *ngIf="loading"
+          diameter="18"
+          mode="indeterminate"
+          class="mr-2">
+        </mat-progress-spinner>
+        <span *ngIf="!loading">Save</span>
+      </button>
+    </mat-dialog-actions>
   `,
   styles: [`
+    .dialog-body { min-width: 360px; max-height: 70vh; overflow: auto; }
     .full-width { width: 100%; }
-    mat-dialog-content { min-width: 350px; }
-    mat-progress-spinner { margin-right: 8px; }
+    .mr-2 { margin-right: 8px; }
   `]
 })
 export class AddWorkOrderDialogComponent implements OnInit {
-  
- form!: FormGroup;           // <-- declare only
+
+  form!: FormGroup;
   technicians: Technician[] = [];
   loading = false;
 
@@ -99,7 +114,6 @@ export class AddWorkOrderDialogComponent implements OnInit {
   ) {}
 
   ngOnInit() {
-    // Initialize FormBuilder AFTER constructor runs
     this.form = this.fb.group({
       clientName: ['', Validators.required],
       address: ['', Validators.required],
@@ -109,30 +123,26 @@ export class AddWorkOrderDialogComponent implements OnInit {
       priority: ['MEDIUM']
     });
 
-    // Load technicians for dropdown
-    this.api.getPage<Technician>('technicians', 0, 100)
-      .subscribe({
-        next: (res) => this.technicians = res.content,
-        error: () => this.notify.error('Failed to load technicians')
-      });
+    this.api.getPage<Technician>('technicians', 0, 100).subscribe({
+      next: res => this.technicians = res.content,
+      error: () => this.notify.error('Failed to load technicians')
+    });
   }
 
   onSubmit() {
     if (this.form.invalid) return;
 
     this.loading = true;
-    this.api.post('workorders', this.form.value)
-      .subscribe({
-        next: () => {
-          this.loading = false;
-          this.notify.success('Work Order created');
-          this.dialogRef.close('created');
-        },
-        error: () => {
-          this.loading = false;
-          this.notify.error('Failed to create Work Order');
-        }
-      });
+    this.api.post('workorders', this.form.value).subscribe({
+      next: () => {
+        this.loading = false;
+        this.notify.success('Work Order created');
+        this.dialogRef.close('created');
+      },
+      error: () => {
+        this.loading = false;
+        this.notify.error('Failed to create Work Order');
+      }
+    });
   }
-
 }
