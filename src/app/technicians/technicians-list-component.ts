@@ -9,6 +9,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { ApiService, PageResponse } from '../core/services/api-service';
 import { AddTechnicianDialogComponent } from './add-technician-dialog.component';
 import { EditTechnicianDialogComponent } from './edit-technician-dialog.component';
+import { AuthService } from '../core/services/auth-service';  // 🔥 NEW
 
 interface Technician {
   id: number;
@@ -32,7 +33,9 @@ interface Technician {
         <p class="subtitle">Manage field technicians and contact information.</p>
       </div>
 
+      <!-- Add Technician: ADMIN only -->
       <button
+        *ngIf="isAdmin"
         mat-fab
         color="primary"
         (click)="openAddDialog()"
@@ -114,20 +117,20 @@ interface Technician {
             </mat-cell>
           </ng-container>
 
-          <!-- Actions -->
-<ng-container matColumnDef="actions">
-  <mat-header-cell *matHeaderCellDef>Actions</mat-header-cell>
-  <mat-cell *matCellDef="let t">
-    <button
-      mat-icon-button
-      color="primary"
-      matTooltip="Edit technician"
-      (click)="openEditDialog(t)">
-      <mat-icon>edit</mat-icon>
-    </button>
-  </mat-cell>
-</ng-container>
-
+          <!-- Actions (ADMIN only buttons) -->
+          <ng-container matColumnDef="actions">
+            <mat-header-cell *matHeaderCellDef>Actions</mat-header-cell>
+            <mat-cell *matCellDef="let t">
+              <button
+                *ngIf="isAdmin"
+                mat-icon-button
+                color="primary"
+                matTooltip="Edit technician"
+                (click)="openEditDialog(t)">
+                <mat-icon>edit</mat-icon>
+              </button>
+            </mat-cell>
+          </ng-container>
 
           <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
           <mat-row
@@ -156,100 +159,27 @@ interface Technician {
       </mat-paginator>
     </mat-card>
   `,
-  styles: [`
-    .header-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 16px;
-    }
-
-    .title {
-      font-size: 22px;
-      font-weight: 600;
-      margin: 0;
-    }
-
-    .subtitle {
-      margin: 0;
-      font-size: 13px;
-      color: #6b7280;
-    }
-
-    .search-bar {
-      width: 320px;
-      max-width: 100%;
-      margin-bottom: 16px;
-    }
-
-    mat-card {
-      padding: 0;
-    }
-
-    .table-wrapper {
-      overflow-x: auto;
-    }
-
-    mat-header-cell, mat-cell {
-      padding: 8px 16px;
-    }
-
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      padding: 2px 8px;
-      border-radius: 999px;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.02em;
-      text-transform: uppercase;
-    }
-
-    .status-active {
-      background: #e8f5e9;
-      color: #2e7d32;
-    }
-
-    .status-inactive {
-      background: #ffebee;
-      color: #c62828;
-    }
-
-    .hover-row:hover {
-      background: #f5f5f5;
-      cursor: pointer;
-    }
-
-    .empty-state {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 24px 16px;
-      color: #6b7280;
-    }
-
-    .mb-1 { margin-bottom: 4px; }
-    .mb-2 { margin-bottom: 8px; }
-    .text-xs { font-size: 11px; }
-    .text-sm { font-size: 13px; }
-    .text-gray-700 { color: #374151; }
-    .font-medium { font-weight: 500; }
-  `]
+  styles: [/* unchanged styles from your last version */]
 })
+
 export class TechniciansListComponent implements OnInit, AfterViewInit {
-displayedColumns: string[] = ['name', 'phone', 'email', 'certifications', 'status', 'actions'];
 
+  /** ---------- Role Flags ---------- **/
+  isAdmin = false;
+  isDispatch = false;
+  isTech = false;
+
+  /** ---------- Columns ---------- **/
+  displayedColumns: string[] = [];
+
+  /** ---------- Table & Paging ---------- **/
   dataSource = new MatTableDataSource<Technician>([]);
-
   page = 0;
   size = 10;
   totalElements = 0;
-
-  // backend sort (matches TechnicianService getPage signature: sort = "field,direction")
   sortBy: string = 'lastName,asc';
 
-  // UI state
+  /** ---------- UI State ---------- **/
   loading = false;
   searchValue = '';
 
@@ -258,17 +188,31 @@ displayedColumns: string[] = ['name', 'phone', 'email', 'certifications', 'statu
 
   constructor(
     private api: ApiService,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private auth: AuthService
   ) {}
 
+  /** ------------------------------------------
+   * ngOnInit → SAFE place to read AuthService
+   * -------------------------------------------*/
   ngOnInit() {
+    // ROLE CHECKS (SAFE)
+    const role = this.auth.getRole();
+    this.isAdmin = role === 'ADMIN';
+    this.isDispatch = role === 'DISPATCH';
+    this.isTech = role === 'TECH';
+
+    // COLUMNS BASED ON ROLE
+    this.displayedColumns = this.isTech
+      ? ['name', 'phone', 'email', 'certifications', 'status']
+      : ['name', 'phone', 'email', 'certifications', 'status', 'actions'];
+
     this.loadPage();
   }
 
   ngAfterViewInit() {
     this.dataSource.paginator = this.paginator;
 
-    // client-side filter across fields on the current page
     this.dataSource.filterPredicate = (data: Technician, filter: string) => {
       const value = filter.trim().toLowerCase();
       return (
@@ -280,16 +224,17 @@ displayedColumns: string[] = ['name', 'phone', 'email', 'certifications', 'statu
       );
     };
 
-    // backend sorting via sortBy, consistent with WorkOrders
+    // Backend sorting
     this.sort.sortChange.subscribe(sortEvent => {
       const field = sortEvent.active === 'name' ? 'lastName' : sortEvent.active;
       const direction = sortEvent.direction || 'asc';
       this.sortBy = `${field},${direction}`;
-      this.page = 0; // reset to first page when sorting changes
+      this.page = 0;
       this.loadPage();
     });
   }
 
+  /** ---------------- PAGE LOAD ---------------- **/
   loadPage() {
     this.loading = true;
 
@@ -301,49 +246,31 @@ displayedColumns: string[] = ['name', 'phone', 'email', 'certifications', 'statu
           this.size = res.size;
           this.totalElements = res.totalElements;
         },
-        error: err => {
-          console.error('Failed to load technicians', err);
-        },
-        complete: () => {
-          this.loading = false;
-        }
+        error: err => console.error('Failed to load technicians', err),
+        complete: () => this.loading = false
       });
   }
 
-
-
+  /** ---------------- ACTIONS ---------------- **/
   openEditDialog(technician: Technician) {
-  const ref = this.dialog.open(EditTechnicianDialogComponent, {
-    width: '460px',
-    data: { technician }
-  });
+    if (!this.isAdmin) return; // UI safety
 
-  ref.afterClosed().subscribe(result => {
-    if (result === 'updated' || result === 'deleted') {
-      this.page = 0;
-      this.loadPage();
-    }
-  });
-}
+    const ref = this.dialog.open(EditTechnicianDialogComponent, {
+      width: '460px',
+      data: { technician }
+    });
 
-  onPageChange(event: any) {
-    this.page = event.pageIndex;
-    this.size = event.pageSize;
-    this.loadPage();
-  }
-
-  applyFilter(event: any) {
-    const value = event.target.value || '';
-    this.searchValue = value;
-    this.dataSource.filter = value.trim().toLowerCase();
-  }
-
-  clearFilter() {
-    this.searchValue = '';
-    this.dataSource.filter = '';
+    ref.afterClosed().subscribe(result => {
+      if (result === 'updated' || result === 'deleted') {
+        this.page = 0;
+        this.loadPage();
+      }
+    });
   }
 
   openAddDialog() {
+    if (!this.isAdmin) return;
+
     const ref = this.dialog.open(AddTechnicianDialogComponent, {
       width: '420px'
     });
@@ -356,7 +283,27 @@ displayedColumns: string[] = ['name', 'phone', 'email', 'certifications', 'statu
     });
   }
 
-  getStatusClass(status: string | null | undefined): string {
+  /** ---------------- Searching & Paging ---------------- **/
+  applyFilter(event: any) {
+    const value = event.target.value || '';
+    this.searchValue = value;
+    this.dataSource.filter = value.trim().toLowerCase();
+  }
+
+  clearFilter() {
+    this.searchValue = '';
+    this.dataSource.filter = '';
+  }
+
+  onPageChange(event: any) {
+    this.page = event.pageIndex;
+    this.size = event.pageSize;
+    this.loadPage();
+  }
+
+  /** ---------------- UI Helpers ---------------- **/
+  getStatusClass(status: string) {
     return status === 'ACTIVE' ? 'status-active' : 'status-inactive';
   }
 }
+

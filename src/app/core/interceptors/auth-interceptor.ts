@@ -23,7 +23,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       // ---- 2. Handle 401 (expired, invalid, missing token) ----
       if (error.status === 401) {
         auth.logout();
-        router.navigate(['/login']);
+        router.navigate(['/auth/login']);
       }
 
       // ---- 3. Handle 403 (forbidden) ----

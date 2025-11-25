@@ -17,6 +17,7 @@ import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatDatepickerToggleIcon } from '@angular/material/datepicker';
 import { MatProgressBar } from '@angular/material/progress-bar';
+import { MatMenuModule } from '@angular/material/menu';
 
 export const MATERIAL_IMPORTS = [
   MatSidenavModule,
@@ -36,5 +37,6 @@ export const MATERIAL_IMPORTS = [
   MatProgressSpinnerModule,
   MatDatepickerModule,
   MatNativeDateModule,
+MatMenuModule, 
   MatProgressBar
 ];
