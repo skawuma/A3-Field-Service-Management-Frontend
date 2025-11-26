@@ -234,9 +234,12 @@ export class WorkOrderDetailComponent implements OnInit {
         this.techForm.description = res.description;
         this.techForm.status = res.status;
 
-        if (res.assignedTechId) {
-          this.loadTechnician(res.assignedTechId);
-        }
+     if (!this.isTech && res.assignedTechId) {
+  this.loadTechnician(res.assignedTechId);
+} else if (this.isTech) {
+  this.technicianName = 'You';
+}
+
       },
       error: () => this.router.navigate(['/workorders']),
       complete: () => this.loading = false
