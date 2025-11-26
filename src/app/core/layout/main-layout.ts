@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { RouterOutlet, RouterLink, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 
@@ -25,13 +25,12 @@ import { AuthService } from '../services/auth-service';
         <mat-nav-list>
 
           <!-- Dashboard: ADMIN + DISPATCH only -->
-          <a
-            mat-list-item
-            routerLink="/dashboard"
-            *ngIf="isAdmin || isDispatch">
-            <mat-icon>dashboard</mat-icon>
-            <span>Dashboard</span>
-          </a>
+    <div *ngIf="isAdmin || isDispatch">
+  <a mat-list-item routerLink="/dashboard">
+    <mat-icon>dashboard</mat-icon>
+    <span>Dashboard</span>
+  </a>
+</div>
 
           <!-- Technicians: ADMIN only -->
           <a
@@ -94,7 +93,64 @@ import { AuthService } from '../services/auth-service';
       </mat-sidenav-content>
     </mat-sidenav-container>
   `,
-  styles: [/* same styles you already have */]
+styles: [`
+    /* unchanged styles from your file */
+    .app-container { height: 100vh; }
+    .app-sidenav {
+      width: 240px;
+      padding-top: 8px;
+      border-right: 1px solid #e5e7eb;
+      display: flex;
+      flex-direction: column;
+    }
+    .logo { padding: 0 16px 16px 16px; border-bottom: 1px solid #e5e7eb; }
+    .logo-text { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+    .welcome { font-size: 12px; color: #6b7280; }
+
+    .app-toolbar {
+      position: sticky; top: 0; z-index: 10;
+      display: flex; align-items: center;
+    }
+    .toolbar-title { flex: 1; font-size: 18px; font-weight: 600; }
+    .app-content { padding: 16px; }
+
+    .user-info { display: flex; align-items: center; gap: 12px; }
+    .user-email { font-size: 13px; }
+
+    .avatar {
+      background: #e0e7ff;
+      color: #1e3a8a;
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      display: flex; justify-content: center; align-items: center;
+      font-weight: 600; text-transform: uppercase;
+    }
+
+    .avatar.big {
+      width: 40px; height: 40px; font-size: 18px;
+      margin-bottom: 8px;
+    }
+
+    .role-badge {
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-top: 2px;
+      text-transform: uppercase;
+    }
+
+    .role-admin { background: #ffebee; color: #c62828; }
+    .role-dispatch { background: #e3f2fd; color: #1565c0; }
+    .role-tech { background: #e8f5e9; color: #2e7d32; }
+
+    .menu-panel { min-width: 220px; }
+    .menu-header {
+      padding: 12px 16px 8px 16px;
+      display: flex; flex-direction: column; align-items: center;
+      border-bottom: 1px solid #e5e7eb;
+    }
+  `]
 })
 export class MainLayoutComponent implements OnInit {
 
@@ -110,7 +166,8 @@ export class MainLayoutComponent implements OnInit {
 
   constructor(
     private auth: AuthService,
-    private router: Router
+    private router: Router,
+    private cd: ChangeDetectorRef
   ) {}
 
   ngOnInit() {
@@ -126,6 +183,37 @@ export class MainLayoutComponent implements OnInit {
     this.userInitials = this.getInitials(this.displayName);
     this.roleClass = this.getRoleClass(this.role);
   }
+
+// ngOnInit() {
+//   this.role = this.auth.getRole();
+
+//   // 🔥 Debug: See what role the UI is actually receiving
+//   console.log("ROLE FROM LOCAL STORAGE:", this.role);
+
+//   this.isAdmin = this.role === 'ADMIN';
+//   this.isDispatch = this.role === 'DISPATCH';
+//   this.isTech = this.role === 'TECH';
+
+//   const { email, displayName } = this.decodeUserInfoFromToken();
+//   this.userEmail = email;
+//   this.displayName = displayName || email || 'User';
+//   this.userInitials = this.getInitials(this.displayName);
+//   this.roleClass = this.getRoleClass(this.role);
+
+
+//   console.log(
+//   "%cMAIN LAYOUT ROLE CHECK",
+//   "color: #4caf50; font-weight: bold;"
+// );
+// console.log("role =", this.role);
+// console.log("isAdmin =", this.isAdmin);
+// console.log("isDispatch =", this.isDispatch);
+// console.log("isTech =", this.isTech);
+
+// this.cd.detectChanges();
+// }
+
+
 
   private decodeUserInfoFromToken(): { email: string | null; displayName: string } {
     const token = this.auth.getToken();

@@ -1,7 +1,6 @@
 import { Routes } from '@angular/router';
 import { authRoutes } from './auth/auth.routes';
 import { AuthGuard } from './core/guards/auth-guard';
-
 import { techniciansRoutes } from './technicians/technicians.routes';
 import { workordersRoutes } from './workorders/workorders.routes';
 import { MainLayoutComponent } from './core/layout/main-layout';
@@ -21,6 +20,8 @@ export const routes: Routes = [
     component: MainLayoutComponent,
     canActivate: [AuthGuard],
     children: [
+
+
 
       {
         path: 'dashboard',

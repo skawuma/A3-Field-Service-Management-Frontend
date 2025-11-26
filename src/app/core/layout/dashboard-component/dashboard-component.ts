@@ -155,6 +155,7 @@ export class DashboardComponent implements OnInit {
 
   ngOnInit() {
     this.loadSummary();
+    
   }
 
   loadSummary() {

@@ -11,6 +11,8 @@ import { MatSort } from '@angular/material/sort';
 import { ApiService } from '../core/services/api-service';
 import { AssignTechnicianDialogComponent } from './assign-technician-dialog.component';
 import { AddWorkOrderDialogComponent } from './add-workorder-dialog.component';
+import { AuthService } from '../core/services/auth-service';
+import { Router } from '@angular/router';
 
 interface WorkOrder {
   id: number;
@@ -37,13 +39,20 @@ interface WorkOrder {
         </p>
       </div>
 
-      <button mat-fab color="primary" (click)="openAddDialog()" matTooltip="Create Work Order">
+      <!-- 🔥 DISABLE FOR TECH -->
+      <button
+        mat-fab
+        color="primary"
+        (click)="openAddDialog()"
+        *ngIf="!isTech"
+        matTooltip="Create Work Order">
         <mat-icon>add</mat-icon>
       </button>
     </div>
 
     <!-- FILTER BAR -->
     <div class="filters flex flex-wrap gap-4 mb-4 items-center">
+
       <!-- Search -->
       <mat-form-field appearance="outline" class="min-w-[220px]">
         <mat-label>Search</mat-label>
@@ -56,34 +65,36 @@ interface WorkOrder {
         </button>
       </mat-form-field>
 
-      <!-- Priority Filter -->
-      <mat-form-field appearance="outline" class="min-w-[160px]">
-        <mat-label>Priority</mat-label>
-        <mat-select [(ngModel)]="priorityFilter" (selectionChange)="applyFilters()">
-          <mat-option value="">All</mat-option>
-          <mat-option value="LOW">Low</mat-option>
-          <mat-option value="MEDIUM">Medium</mat-option>
-          <mat-option value="HIGH">High</mat-option>
-          <mat-option value="CRITICAL">Critical</mat-option>
-        </mat-select>
-      </mat-form-field>
+      <!-- 🔥 TECH sees no filters -->
+      <ng-container *ngIf="!isTech">
 
-      <!-- Status Filter -->
-      <mat-form-field appearance="outline" class="min-w-[160px]">
-        <mat-label>Status</mat-label>
-        <mat-select [(ngModel)]="statusFilter" (selectionChange)="applyFilters()">
-          <mat-option value="">All</mat-option>
-          <mat-option value="OPEN">Open</mat-option>
-          <mat-option value="ASSIGNED">Assigned</mat-option>
-          <mat-option value="IN_PROGRESS">In Progress</mat-option>
-          <mat-option value="COMPLETED">Completed</mat-option>
-        </mat-select>
-      </mat-form-field>
+        <mat-form-field appearance="outline" class="min-w-[160px]">
+          <mat-label>Priority</mat-label>
+          <mat-select [(ngModel)]="priorityFilter" (selectionChange)="applyFilters()">
+            <mat-option value="">All</mat-option>
+            <mat-option value="LOW">Low</mat-option>
+            <mat-option value="MEDIUM">Medium</mat-option>
+            <mat-option value="HIGH">High</mat-option>
+            <mat-option value="CRITICAL">Critical</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="min-w-[160px]">
+          <mat-label>Status</mat-label>
+          <mat-select [(ngModel)]="statusFilter" (selectionChange)="applyFilters()">
+            <mat-option value="">All</mat-option>
+            <mat-option value="OPEN">Open</mat-option>
+            <mat-option value="ASSIGNED">Assigned</mat-option>
+            <mat-option value="IN_PROGRESS">In Progress</mat-option>
+            <mat-option value="COMPLETED">Completed</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+      </ng-container>
+
     </div>
 
     <mat-card>
-
-      <!-- LOADING BAR -->
       <mat-progress-bar *ngIf="loading" mode="indeterminate"></mat-progress-bar>
 
       <!-- TABLE -->
@@ -92,95 +103,71 @@ interface WorkOrder {
 
           <!-- Client -->
           <ng-container matColumnDef="clientName">
-            <mat-header-cell *matHeaderCellDef mat-sort-header="clientName">
-              Client
-            </mat-header-cell>
-            <mat-cell *matCellDef="let w">
-              <span class="font-medium">{{ w.clientName }}</span>
-            </mat-cell>
+            <mat-header-cell *matHeaderCellDef mat-sort-header="clientName">Client</mat-header-cell>
+            <mat-cell *matCellDef="let w">{{ w.clientName }}</mat-cell>
           </ng-container>
 
           <!-- Address -->
           <ng-container matColumnDef="address">
-            <mat-header-cell *matHeaderCellDef>
-              Address
-            </mat-header-cell>
-            <mat-cell *matCellDef="let w">
-              <span class="text-sm text-gray-700">{{ w.address }}</span>
-            </mat-cell>
+            <mat-header-cell *matHeaderCellDef>Address</mat-header-cell>
+            <mat-cell *matCellDef="let w">{{ w.address }}</mat-cell>
           </ng-container>
 
           <!-- Status -->
           <ng-container matColumnDef="status">
-            <mat-header-cell *matHeaderCellDef mat-sort-header="status">
-              Status
-            </mat-header-cell>
+            <mat-header-cell *matHeaderCellDef>Status</mat-header-cell>
             <mat-cell *matCellDef="let w">
-              <span class="badge" [ngClass]="getStatusClass(w.status)">
-                {{ w.status | titlecase }}
-              </span>
-            </mat-cell>
-          </ng-container>
-
-          <!-- Scheduled -->
-          <ng-container matColumnDef="scheduledDate">
-            <mat-header-cell *matHeaderCellDef mat-sort-header="scheduledDate">
-              Scheduled
-            </mat-header-cell>
-            <mat-cell *matCellDef="let w">
-              <span class="text-sm text-gray-700">
-                {{ w.scheduledDate ? (w.scheduledDate | date : 'MM/dd/yyyy') : '-' }}
-              </span>
+              <span class="badge" [ngClass]="getStatusClass(w.status)">{{ w.status }}</span>
             </mat-cell>
           </ng-container>
 
           <!-- Priority -->
           <ng-container matColumnDef="priority">
-            <mat-header-cell *matHeaderCellDef mat-sort-header="priority">
-              Priority
-            </mat-header-cell>
+            <mat-header-cell *matHeaderCellDef>Priority</mat-header-cell>
             <mat-cell *matCellDef="let w">
-              <span class="badge" [ngClass]="getPriorityClass(w.priority)">
-                {{ w.priority || 'N/A' }}
-              </span>
+              <span class="badge" [ngClass]="getPriorityClass(w.priority)">{{ w.priority }}</span>
             </mat-cell>
           </ng-container>
 
           <!-- Actions -->
           <ng-container matColumnDef="actions">
             <mat-header-cell *matHeaderCellDef>Actions</mat-header-cell>
-            <mat-cell *matCellDef="let w">
+
+            <mat-cell *matCellDef="let w" class="flex gap-2 items-center">
+
+              <!-- 🔥 VIEW DETAILS -->
               <button
                 mat-icon-button
-                color="primary"
+                matTooltip="View Details"
+                (click)="openDetail(w)">
+                <mat-icon>visibility</mat-icon>
+              </button>
+
+              <!-- 🔥 Only Admin / Dispatch -->
+              <button
+                *ngIf="!isTech"
+                mat-icon-button
                 matTooltip="Assign Technician"
                 (click)="openAssignDialog(w)">
                 <mat-icon>person_add</mat-icon>
               </button>
+
             </mat-cell>
           </ng-container>
 
           <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
+
+          <!-- ENTIRE ROW CLICKABLE -->
           <mat-row
-            *matRowDef="let row; columns: displayedColumns;"
-            class="hover-row">
+            *matRowDef="let row; columns: displayedColumns"
+            class="hover-row"
+            (click)="openDetail(row)"
+            matRipple>
           </mat-row>
 
         </mat-table>
       </div>
 
-      <!-- EMPTY STATE -->
-      <div
-        *ngIf="!loading && dataSource.data.length === 0"
-        class="flex flex-col items-center justify-center py-10 text-gray-500">
-        <mat-icon class="mb-2">inbox</mat-icon>
-        <p class="mb-1">No work orders found.</p>
-        <p class="text-xs">
-          Try adjusting your filters or create a new work order.
-        </p>
-      </div>
-
-      <!-- PAGINATOR -->
       <mat-paginator
         [length]="totalElements"
         [pageIndex]="page"
@@ -188,95 +175,37 @@ interface WorkOrder {
         [pageSizeOptions]="[5, 10, 20]"
         (page)="onPageChange($event)">
       </mat-paginator>
+
     </mat-card>
   `,
+
   styles: [`
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      padding: 2px 8px;
-      border-radius: 999px;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.02em;
-      text-transform: uppercase;
+    .hover-row {
+      cursor: pointer;
     }
-
-    .status-open {
-      background: #e3f2fd;
-      color: #1565c0;
-    }
-    .status-assigned {
-      background: #ede7f6;
-      color: #5e35b1;
-    }
-    .status-in-progress {
-      background: #fff3e0;
-      color: #ef6c00;
-    }
-    .status-completed {
-      background: #e8f5e9;
-      color: #2e7d32;
-    }
-    .status-default {
-      background: #eceff1;
-      color: #455a64;
-    }
-
-    .priority-low {
-      background: #e8f5e9;
-      color: #2e7d32;
-    }
-    .priority-medium {
-      background: #fffde7;
-      color: #f9a825;
-    }
-    .priority-high {
-      background: #fff3e0;
-      color: #ef6c00;
-    }
-    .priority-critical {
-      background: #ffebee;
-      color: #c62828;
-    }
-    .priority-default {
-      background: #eceff1;
-      color: #455a64;
-    }
-
     .hover-row:hover {
       background: #f5f5f5;
-      cursor: pointer;
     }
   `]
 })
 export class WorkordersListComponent implements OnInit, AfterViewInit {
 
-  displayedColumns = [
-    'clientName',
-    'address',
-    'status',
-    'scheduledDate',
-    'priority',
-    'actions'
-  ];
+  isTech = false;
+  role = '';
+
+  displayedColumns = ['clientName', 'address', 'status', 'priority', 'actions'];
 
   dataSource = new MatTableDataSource<WorkOrder>([]);
 
-  // pagination
   page = 0;
   size = 10;
   totalElements = 0;
 
-  // filters
   search = '';
   priorityFilter = '';
   statusFilter = '';
 
-  // sorting
-  sortBy: string = 'id,desc';
-
-  // loading
+  sortBy = 'id,desc';
   loading = false;
 
   @ViewChild(MatPaginator) paginator!: MatPaginator;
@@ -284,68 +213,55 @@ export class WorkordersListComponent implements OnInit, AfterViewInit {
 
   constructor(
     private api: ApiService,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private auth: AuthService,
+    private router: Router
   ) {}
 
   ngOnInit() {
+    this.role = this.auth.getRole() || '';
+    this.isTech = this.role === 'TECH';
     this.loadPage(0);
   }
 
   ngAfterViewInit() {
-    this.sort.sortChange.subscribe(sortEvent => {
-      const field = sortEvent.active;
-      const direction = sortEvent.direction || 'asc';
-      this.sortBy = `${field},${direction}`;
+    this.sort.sortChange.subscribe(s => {
+      this.sortBy = `${s.active},${s.direction || 'asc'}`;
       this.loadPage(0);
     });
-
     this.dataSource.paginator = this.paginator;
   }
 
-loadPage(page: number) {
-  this.page = page;
-  this.loading = true;
-
-  // Build params safely
-  const params: any = {
-    page: this.page,
-    size: this.size,
-    sort: this.sortBy
-  };
-
-  // Only include search if non-empty
-  if (this.search && this.search.trim() !== '') {
-    params.search = this.search.trim();
+  openDetail(w: WorkOrder) {
+    this.router.navigate(['/workorders', w.id]);
   }
 
-  // Only include priority if selected
-  if (this.priorityFilter) {
-    params.priority = this.priorityFilter;
-  }
+  loadPage(page: number) {
+    this.page = page;
+    this.loading = true;
 
-  // Only include status if selected
-  if (this.statusFilter) {
-    params.status = this.statusFilter;
-  }
+    const params: any = { page: this.page, size: this.size, sort: this.sortBy };
 
-  this.api.getPageAdvanced<WorkOrder>('workorders', params)
-    .subscribe({
+    if (this.isTech) {
+      params.technicianId = this.auth.getUserId();
+    } else {
+      if (this.search) params.search = this.search;
+      if (this.priorityFilter) params.priority = this.priorityFilter;
+      if (this.statusFilter) params.status = this.statusFilter;
+    }
+
+    this.api.getPageAdvanced<WorkOrder>('workorders', params).subscribe({
       next: res => {
         this.dataSource.data = res.content;
         this.totalElements = res.totalElements;
       },
-      error: err => {
-        console.error('Failed to load workorders', err);
-      },
-      complete: () => {
-        this.loading = false;
-      }
+      error: err => console.error(err),
+      complete: () => this.loading = false
     });
-}
+  }
 
-
-  onSearch(evt: any) {
-    this.search = evt.target.value;
+  onSearch(e: any) {
+    this.search = e.target.value;
     this.loadPage(0);
   }
 
@@ -359,47 +275,40 @@ loadPage(page: number) {
   }
 
   openAddDialog() {
+    if (this.isTech) return;
     const ref = this.dialog.open(AddWorkOrderDialogComponent, { width: '450px' });
-    ref.afterClosed().subscribe(r => {
-      if (r === 'created') this.loadPage(0);
-    });
+    ref.afterClosed().subscribe(v => v === 'created' && this.loadPage(0));
   }
 
-  openAssignDialog(workorder: WorkOrder) {
-    const ref = this.dialog.open(AssignTechnicianDialogComponent, {
-      width: '420px',
-      data: { workorder }
-    });
-
-    ref.afterClosed().subscribe(r => {
-      if (r === 'assigned') this.loadPage(0);
-    });
+  openAssignDialog(w: WorkOrder) {
+    if (this.isTech) return;
+    const ref = this.dialog.open(AssignTechnicianDialogComponent, { width: '420px', data: { workorder: w } });
+    ref.afterClosed().subscribe(v => v === 'assigned' && this.loadPage(0));
   }
 
-  onPageChange(event: any) {
-    this.page = event.pageIndex;
-    this.size = event.pageSize;
+  onPageChange(e: any) {
+    this.page = e.pageIndex;
+    this.size = e.pageSize;
     this.loadPage(this.page);
   }
 
-  // ====== UI helpers for badge classes ======
-  getStatusClass(status: string | null | undefined): string {
-    switch (status) {
-      case 'OPEN': return 'status-open';
-      case 'ASSIGNED': return 'status-assigned';
-      case 'IN_PROGRESS': return 'status-in-progress';
-      case 'COMPLETED': return 'status-completed';
-      default: return 'status-default';
-    }
+  getStatusClass(s: string) {
+    const map: any = {
+      OPEN: 'status-open',
+      ASSIGNED: 'status-assigned',
+      IN_PROGRESS: 'status-in-progress',
+      COMPLETED: 'status-completed'
+    };
+    return map[s] || 'status-default';
   }
 
-  getPriorityClass(priority: string | null | undefined): string {
-    switch (priority) {
-      case 'LOW': return 'priority-low';
-      case 'MEDIUM': return 'priority-medium';
-      case 'HIGH': return 'priority-high';
-      case 'CRITICAL': return 'priority-critical';
-      default: return 'priority-default';
-    }
+  getPriorityClass(p: string | null) {
+    const map: any = {
+      LOW: 'priority-low',
+      MEDIUM: 'priority-medium',
+      HIGH: 'priority-high',
+      CRITICAL: 'priority-critical'
+    };
+    return map[p || ''] || 'priority-default';
   }
 }

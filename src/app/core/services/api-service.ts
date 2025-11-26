@@ -13,42 +13,40 @@ export interface PageResponse<T> {
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
- 
-  
-  private readonly baseUrl = environment.apiUrl;  // 👈 USE ENV
+
+  private readonly baseUrl = environment.apiUrl;
 
   constructor(private http: HttpClient) {}
 
   /** GET paged results */
-getPage<T>(path: string, page: number, size: number, sort: string = 'lastName,asc', extraParams?: any): Observable<PageResponse<T>> {
-  let params = new HttpParams()
-    .set('page', page)
-    .set('size', size);
+  getPage<T>(path: string, page: number, size: number, sort: string = 'lastName,asc', extraParams?: any): Observable<PageResponse<T>> {
+    let params = new HttpParams()
+      .set('page', page)
+      .set('size', size);
 
-  if (sort) {
-    // params = params.set('sortBy', sortBy);
-    params = params.set('sort', sort);
+    if (sort) params = params.set('sort', sort);
 
+    if (extraParams) {
+      Object.keys(extraParams).forEach(key => {
+        if (extraParams[key] !== null && extraParams[key] !== '') {
+          params = params.set(key, extraParams[key]);
+        }
+      });
+    }
+
+    return this.http.get<PageResponse<T>>(`${this.baseUrl}/${path}`, { params });
   }
 
-  if (extraParams) {
-    Object.keys(extraParams).forEach(key => {
-      if (extraParams[key] !== null && extraParams[key] !== '') {
-        params = params.set(key, extraParams[key]);
-      }
-    });
+  getPageAdvanced<T>(path: string, params: any) {
+    return this.http.get<PageResponse<T>>(`${this.baseUrl}/${path}`, { params });
   }
 
-  return this.http.get<PageResponse<T>>(`${this.baseUrl}/${path}`, { params });
-}
+  /** 🔥 GET ONE (new) */
+  getOne<T>(path: string, id: number): Observable<T> {
+    return this.http.get<T>(`${this.baseUrl}/${path}/${id}`);
+  }
 
-getPageAdvanced<T>(path: string, params: any) {
-  return this.http.get<PageResponse<T>>(`${this.baseUrl}/${path}`, { params });
-}
-
-
-
-  /** GET single or list (non-paginated) */
+  /** GET list or custom endpoint */
   get<T>(path: string): Observable<T> {
     return this.http.get<T>(`${this.baseUrl}/${path}`);
   }
@@ -72,5 +70,5 @@ getPageAdvanced<T>(path: string, params: any) {
   delete<T>(path: string): Observable<T> {
     return this.http.delete<T>(`${this.baseUrl}/${path}`);
   }
-}
 
+}

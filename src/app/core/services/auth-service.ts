@@ -62,9 +62,29 @@ export class AuthService {
   // ------------------------------------
   // ROLE HELPERS
   // ------------------------------------
+  // getRole(): string | null {
+  //   return localStorage.getItem(this.roleKey);
+  // }
+
   getRole(): string | null {
-    return localStorage.getItem(this.roleKey);
+  const token = this.getToken();
+  if (!token) return null;
+
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    if (payload.role) {
+      return payload.role;  // 🎯 ALWAYS FROM JWT
+    }
+  } catch (e) {
+    console.error("Failed to decode JWT", e);
   }
+
+  // fallback if anything goes wrong
+  return localStorage.getItem(this.roleKey);
+
+  
+}
+
 
   isAdmin(): boolean {
     return this.getRole() === 'ADMIN';
@@ -81,4 +101,23 @@ export class AuthService {
   isAuthenticated(): boolean {
     return !!this.getToken();
   }
+
+  // ------------------------------------
+// USER ID FROM JWT
+// ------------------------------------
+getUserId(): number | null {
+  const token = this.getToken();
+  if (!token) return null;
+
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+
+    // Our backend will set payload.id soon
+    return payload.id ? Number(payload.id) : null;
+
+  } catch (e) {
+    return null;
+  }
+}
+
 }
