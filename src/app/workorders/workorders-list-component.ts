@@ -13,6 +13,7 @@ import { AssignTechnicianDialogComponent } from './assign-technician-dialog.comp
 import { AddWorkOrderDialogComponent } from './add-workorder-dialog.component';
 import { AuthService } from '../core/services/auth-service';
 import { Router } from '@angular/router';
+import { WorkorderTimelineDialogComponent } from './workorder-timeline-dialog.component';
 
 interface WorkOrder {
   id: number;
@@ -151,6 +152,13 @@ interface WorkOrder {
                 (click)="openAssignDialog(w)">
                 <mat-icon>person_add</mat-icon>
               </button>
+              <!-- TIMELINE -->
+<button
+  mat-icon-button
+  matTooltip="Timeline"
+  (click)="openTimeline(w); $event.stopPropagation()">
+  <mat-icon>history</mat-icon>
+</button>
 
             </mat-cell>
           </ng-container>
@@ -235,6 +243,13 @@ export class WorkordersListComponent implements OnInit, AfterViewInit {
   openDetail(w: WorkOrder) {
     this.router.navigate(['/workorders', w.id]);
   }
+
+  openTimeline(w: WorkOrder) {
+  this.dialog.open(WorkorderTimelineDialogComponent, {
+    width: '600px',
+    data: { workorder: w }
+  });
+}
 
   loadPage(page: number) {
     this.page = page;

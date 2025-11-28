@@ -14,11 +14,19 @@ export interface PageResponse<T> {
 @Injectable({ providedIn: 'root' })
 export class ApiService {
 
-  private readonly baseUrl = environment.apiUrl;
+  private readonly baseUrl = environment.apiUrl;  // e.g. http://localhost:8080/api
 
   constructor(private http: HttpClient) {}
 
-  /** GET paged results */
+  /** 
+   * SAFE URL BUILDER — Removes leading slash to prevent double-slash `//` issues 
+   */
+  private buildUrl(path: string): string {
+    const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+    return `${this.baseUrl}/${cleanPath}`;
+  }
+
+  /** GET Paged Results */
   getPage<T>(path: string, page: number, size: number, sort: string = 'lastName,asc', extraParams?: any): Observable<PageResponse<T>> {
     let params = new HttpParams()
       .set('page', page)
@@ -34,41 +42,40 @@ export class ApiService {
       });
     }
 
-    return this.http.get<PageResponse<T>>(`${this.baseUrl}/${path}`, { params });
+    return this.http.get<PageResponse<T>>(this.buildUrl(path), { params });
   }
 
   getPageAdvanced<T>(path: string, params: any) {
-    return this.http.get<PageResponse<T>>(`${this.baseUrl}/${path}`, { params });
+    return this.http.get<PageResponse<T>>(this.buildUrl(path), { params });
   }
 
-  /** 🔥 GET ONE (new) */
+  /** GET ONE */
   getOne<T>(path: string, id: number): Observable<T> {
-    return this.http.get<T>(`${this.baseUrl}/${path}/${id}`);
+    return this.http.get<T>(this.buildUrl(`${path}/${id}`));
   }
 
-  /** GET list or custom endpoint */
+  /** GET LIST or Custom Endpoint */
   get<T>(path: string): Observable<T> {
-    return this.http.get<T>(`${this.baseUrl}/${path}`);
+    return this.http.get<T>(this.buildUrl(path));
   }
 
   /** POST */
   post<T>(path: string, body: any): Observable<T> {
-    return this.http.post<T>(`${this.baseUrl}/${path}`, body);
+    return this.http.post<T>(this.buildUrl(path), body);
   }
 
   /** PUT */
   put<T>(path: string, body: any): Observable<T> {
-    return this.http.put<T>(`${this.baseUrl}/${path}`, body);
+    return this.http.put<T>(this.buildUrl(path), body);
   }
 
   /** PATCH */
   patch<T>(path: string, body: any): Observable<T> {
-    return this.http.patch<T>(`${this.baseUrl}/${path}`, body);
+    return this.http.patch<T>(this.buildUrl(path), body);
   }
 
   /** DELETE */
   delete<T>(path: string): Observable<T> {
-    return this.http.delete<T>(`${this.baseUrl}/${path}`);
+    return this.http.delete<T>(this.buildUrl(path));
   }
-
 }
