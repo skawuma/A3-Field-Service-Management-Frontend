@@ -37,3 +37,20 @@ body {
 
 html, body { height: 100%; }
 body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+
+
+
+.mat-mdc-snack-bar-container.snackbar-success .mdc-snackbar__surface {
+  background-color: #16a34a !important;
+  color: white !important;
+}
+
+.mat-mdc-snack-bar-container.snackbar-error .mdc-snackbar__surface {
+  background-color: #dc2626 !important;
+  color: white !important;
+}
+
+.mat-mdc-snack-bar-container.snackbar-success .mdc-button__label,
+.mat-mdc-snack-bar-container.snackbar-error .mdc-button__label {
+  color: white !important;
+}

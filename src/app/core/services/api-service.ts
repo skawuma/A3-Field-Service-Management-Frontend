@@ -78,4 +78,10 @@ export class ApiService {
   delete<T>(path: string): Observable<T> {
     return this.http.delete<T>(this.buildUrl(path));
   }
+
+  downloadBlob(path: string) {
+  return this.http.get(`${this.baseUrl}/${path}`, {
+    responseType: 'blob'
+  });
+}
 }

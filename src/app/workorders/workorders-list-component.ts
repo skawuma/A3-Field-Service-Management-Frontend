@@ -14,6 +14,7 @@ import { AddWorkOrderDialogComponent } from './add-workorder-dialog.component';
 import { AuthService } from '../core/services/auth-service';
 import { Router } from '@angular/router';
 import { WorkorderTimelineDialogComponent } from './workorder-timeline-dialog.component';
+import { EditWorkOrderDialogComponent } from './workorder-edit-dialog.component';
 
 interface WorkOrder {
   id: number;
@@ -248,6 +249,19 @@ export class WorkordersListComponent implements OnInit, AfterViewInit {
   this.dialog.open(WorkorderTimelineDialogComponent, {
     width: '600px',
     data: { workorder: w }
+  });
+}
+
+openEditDialog(w: WorkOrder) {
+  const ref = this.dialog.open(EditWorkOrderDialogComponent, {
+    width: '650px',
+    data: { workorder: w }
+  });
+
+  ref.afterClosed().subscribe(result => {
+    if (result === 'updated') {
+      this.loadPage(this.page); // refresh list
+    }
   });
 }
 
