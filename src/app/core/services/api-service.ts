@@ -84,4 +84,13 @@ export class ApiService {
     responseType: 'blob'
   });
 }
+
+submitCompletionReport(id: number, body: any) {
+  return this.post(`workorders/${id}/completion-report`, body);
+}
+
+getCompletionReport(id: number) {
+  return this.get(`workorders/${id}/completion-report`);
+}
+
 }

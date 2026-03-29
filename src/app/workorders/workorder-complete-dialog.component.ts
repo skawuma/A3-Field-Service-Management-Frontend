@@ -26,16 +26,48 @@ import { MATERIAL_IMPORTS } from '../material-imports';
         </div>
 
         <p class="helper-text">
-          Add final completion notes, then sign below to complete this work order.
+          Complete the structured report, add final notes, and sign below to close this work order.
         </p>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>FA Tag / Device</mat-label>
+          <input matInput [(ngModel)]="form.faTag" />
+        </mat-form-field>
+
+        <mat-slide-toggle [(ngModel)]="form.issueResolved">
+          Issue Resolved
+        </mat-slide-toggle>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Replacement Needed</mat-label>
+          <mat-select [(ngModel)]="form.replacementNeeded">
+            <mat-option value="YES">Yes</mat-option>
+            <mat-option value="NO">No</mat-option>
+            <mat-option value="PROBABLE">Probable</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-slide-toggle [(ngModel)]="form.returnVisitRequired">
+          Return Visit Required
+        </mat-slide-toggle>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Summary of Work Performed</mat-label>
+          <textarea
+            matInput
+            rows="4"
+            [(ngModel)]="form.summaryOfWork"
+            placeholder="Describe what was done onsite...">
+          </textarea>
+        </mat-form-field>
 
         <mat-form-field appearance="outline" class="full-width">
           <mat-label>Completion Notes</mat-label>
           <textarea
             matInput
-            rows="4"
-            [(ngModel)]="completionNotes"
-            placeholder="Example: Replaced scanner, tested successfully, verified FA tag.">
+            rows="3"
+            [(ngModel)]="form.completionNotes"
+            placeholder="Optional final sign-off notes...">
           </textarea>
         </mat-form-field>
 
@@ -98,7 +130,7 @@ import { MATERIAL_IMPORTS } from '../material-imports';
       display: flex;
       flex-direction: column;
       gap: 16px;
-      min-width: 620px;
+      min-width: 680px;
       max-width: 100%;
       padding-top: 6px;
     }
@@ -171,8 +203,16 @@ export class WorkorderCompleteDialogComponent implements AfterViewInit {
   @ViewChild('signatureCanvas', { static: true })
   canvasRef!: ElementRef<HTMLCanvasElement>;
 
-  completionNotes = '';
   submitting = false;
+
+  form = {
+    faTag: '',
+    issueResolved: true,
+    replacementNeeded: 'NO',
+    returnVisitRequired: false,
+    summaryOfWork: '',
+    completionNotes: ''
+  };
 
   private ctx!: CanvasRenderingContext2D;
   private drawing = false;
@@ -274,6 +314,16 @@ export class WorkorderCompleteDialogComponent implements AfterViewInit {
   }
 
   submit() {
+    if (!this.form.faTag.trim()) {
+      alert('FA Tag / Device is required.');
+      return;
+    }
+
+    if (!this.form.summaryOfWork.trim()) {
+      alert('Summary of Work Performed is required.');
+      return;
+    }
+
     if (!this.hasSignature) {
       alert('Signature is required before completion.');
       return;
@@ -284,8 +334,13 @@ export class WorkorderCompleteDialogComponent implements AfterViewInit {
     const signatureDataUrl = this.canvasRef.nativeElement.toDataURL('image/png');
 
     this.dialogRef.close({
-      signatureDataUrl,
-      completionNotes: this.completionNotes?.trim() || ''
+      faTag: this.form.faTag.trim(),
+      issueResolved: this.form.issueResolved,
+      replacementNeeded: this.form.replacementNeeded,
+      returnVisitRequired: this.form.returnVisitRequired,
+      summaryOfWork: this.form.summaryOfWork.trim(),
+      completionNotes: this.form.completionNotes?.trim() || '',
+      signatureDataUrl
     });
   }
 }

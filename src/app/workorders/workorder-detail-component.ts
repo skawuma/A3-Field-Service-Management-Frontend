@@ -13,6 +13,8 @@ import { WorkorderTimelineComponent } from '../workorders/workorder-timeline.com
 import { EditWorkOrderDialogComponent } from '../workorders/workorder-edit-dialog.component';
 import { WorkorderCompleteDialogComponent } from '../workorders/workorder-complete-dialog.component';
 import { environment } from '../../environments/environment.development';
+import { WorkOrderCompletionReportResponse } from '../core/models/completion-report.model';
+import { WorkorderCompletionReportDialogComponent } from './workorder-completion-report-dialog.component';
 
 interface WorkOrderAttachment {
   id: number;
@@ -118,12 +120,12 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
               </textarea>
             </mat-form-field>
 
-            <mat-form-field appearance="outline" class="full-width">
+            <!-- <mat-form-field appearance="outline" class="full-width">
               <mat-label>Status</mat-label>
               <mat-select [(ngModel)]="techForm.status">
                 <mat-option value="IN_PROGRESS">In Progress</mat-option>
               </mat-select>
-            </mat-form-field>
+            </mat-form-field> -->
 
             <div class="tech-actions">
               <button
@@ -133,7 +135,7 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
                 [disabled]="loading || workorder.status === 'COMPLETED'">
 
                 <mat-spinner *ngIf="loading" diameter="18"></mat-spinner>
-                {{ loading ? 'Saving...' : 'Save' }}
+                {{ loading ? 'Saving...' : 'Save Notes' }}
               </button>
 
               <button
@@ -146,6 +148,17 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
                 <mat-spinner *ngIf="loading" diameter="18"></mat-spinner>
                 {{ loading ? 'Processing...' : 'Complete & Sign Off' }}
               </button>
+
+              <!-- <button
+                mat-stroked-button
+                color="primary"
+                (click)="openCompletionReportDialog()"
+                [disabled]="loading || workorder.status === 'COMPLETED' || !!completionReport">
+
+                <mat-icon *ngIf="!loading">assignment_turned_in</mat-icon>
+                <mat-spinner *ngIf="loading" diameter="18"></mat-spinner>
+                {{ loading ? 'Processing...' : 'Submit Report' }}
+               </button> -->
             </div>
           </div>
 
@@ -168,6 +181,35 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
               alt="Technician signature"
               class="signature-image" />
           </div>
+
+          <div *ngIf="completionReport" class="completion-report">
+  <h4>Structured Completion Report</h4>
+
+  <div class="row">
+    <div class="label">FA Tag / Device:</div>
+    <div class="value">{{ completionReport.faTag }}</div>
+  </div>
+
+  <div class="row">
+    <div class="label">Issue Resolved:</div>
+    <div class="value">{{ completionReport.issueResolved ? 'Yes' : 'No' }}</div>
+  </div>
+
+  <div class="row">
+    <div class="label">Replacement Needed:</div>
+    <div class="value">{{ completionReport.replacementNeeded }}</div>
+  </div>
+
+  <div class="row">
+    <div class="label">Return Visit Required:</div>
+    <div class="value">{{ completionReport.returnVisitRequired ? 'Yes' : 'No' }}</div>
+  </div>
+
+  <div class="row">
+    <div class="label">Summary:</div>
+    <div class="value">{{ completionReport.summaryOfWork }}</div>
+  </div>
+</div>
 
         </mat-card-content>
       </mat-card>
@@ -443,6 +485,12 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
       transition: all 0.2s ease;
     }
 
+    .completion-report {
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+}
+
     .selected-file {
       font-size: 13px;
       color: #555;
@@ -458,7 +506,7 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
   signaturePreviewObjectUrl: string | null = null;
 
   baseUrl = environment.apiUrl;
-
+  completionReport: WorkOrderCompletionReportResponse | null = null;
   attachments: WorkOrderAttachmentView[] = [];
   selectedFile: File | null = null;
   uploading = false;
@@ -474,8 +522,9 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
   loading = false;
 
   techForm = {
-    description: '',
-    status: 'IN_PROGRESS'
+    description: ''
+    
+   , status: 'IN_PROGRESS'
   };
 
   constructor(
@@ -485,7 +534,7 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
     private router: Router,
     private dialog: MatDialog,
     private snackBar: MatSnackBar
-  ) {}
+  ) { }
 
   ngOnInit() {
     this.id = Number(this.route.snapshot.paramMap.get('id'));
@@ -503,8 +552,8 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
         this.workorder = res;
 
         this.techForm.description = res.description;
-        this.techForm.status = res.status === 'COMPLETED' ? 'IN_PROGRESS' : res.status;
-
+         this.techForm.status = res.status === 'COMPLETED' ? 'IN_PROGRESS' : res.status;
+        this.techForm.description = res.description;
         if (!this.isTech && res.assignedTechId) {
           this.loadTechnician(res.assignedTechId);
         } else if (this.isTech) {
@@ -513,6 +562,7 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
 
         this.loadAttachments();
         this.loadSignaturePreview();
+        this.loadCompletionReport();
       },
       error: () => {
         this.showError('Failed to load work order.');
@@ -673,7 +723,8 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
       assignedTechId: this.workorder.assignedTechId,
       scheduledDate: this.workorder.scheduledDate,
       priority: this.workorder.priority,
-      status: this.techForm.status
+       status: this.techForm.status
+     // status: this.workorder.status
     };
 
     this.api.put(`workorders/${this.id}`, body).subscribe({
@@ -688,41 +739,104 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
     });
   }
 
+  // openCompleteDialog() {
+  //   const dialogRef = this.dialog.open(WorkorderCompleteDialogComponent, {
+  //     width: '760px',
+  //     data: { workorder: this.workorder }
+  //   });
+
+  //   dialogRef.afterClosed().subscribe(result => {
+  //     if (!result) return;
+
+  //     this.loading = true;
+
+  //     this.api.post(`workorders/${this.id}/complete`, result).subscribe({
+  //       next: () => {
+  //         this.showSuccess('Work order completed successfully.');
+  //         this.load();
+  //       },
+  //       error: (err) => {
+  //         console.error('Completion failed', err);
+
+  //         if (err.status === 403) {
+  //           this.showError('You are not allowed to complete this work order.');
+  //         } else if (err.status === 400) {
+  //           this.showError('Invalid completion request.');
+  //         } else {
+  //           this.showError('Failed to complete work order.');
+  //         }
+
+  //         this.loading = false;
+  //       },
+  //       complete: () => {
+  //         this.loading = false;
+  //       }
+  //     });
+  //   });
+  // }
+
+
   openCompleteDialog() {
-    const dialogRef = this.dialog.open(WorkorderCompleteDialogComponent, {
-      width: '760px',
-      data: { workorder: this.workorder }
-    });
+  const dialogRef = this.dialog.open(WorkorderCompleteDialogComponent, {
+    width: '760px',
+    data: { workorder: this.workorder }
+  });
 
-    dialogRef.afterClosed().subscribe(result => {
-      if (!result) return;
+  dialogRef.afterClosed().subscribe(result => {
+    if (!result) return;
 
-      this.loading = true;
+    this.loading = true;
 
-      this.api.post(`workorders/${this.id}/complete`, result).subscribe({
-        next: () => {
-          this.showSuccess('Work order completed successfully.');
-          this.load();
-        },
-        error: (err) => {
-          console.error('Completion failed', err);
+    const reportBody = {
+      faTag: result.faTag,
+      issueResolved: result.issueResolved,
+      replacementNeeded: result.replacementNeeded,
+      returnVisitRequired: result.returnVisitRequired,
+      summaryOfWork: result.summaryOfWork
+    };
 
-          if (err.status === 403) {
-            this.showError('You are not allowed to complete this work order.');
-          } else if (err.status === 400) {
-            this.showError('Invalid completion request.');
-          } else {
-            this.showError('Failed to complete work order.');
+    const completeBody = {
+      signatureDataUrl: result.signatureDataUrl,
+      completionNotes: result.completionNotes
+    };
+
+    this.api.submitCompletionReport(this.id, reportBody).subscribe({
+      next: () => {
+            console.log('✅ REPORT SUCCESS');
+        this.api.post(`workorders/${this.id}/complete`, completeBody).subscribe({
+          next: () => {
+             console.log('✅ COMPLETE SUCCESS');
+            this.showSuccess('Work order completed successfully.');
+            this.load();
+          },
+          error: (err) => {
+            console.error('Sign-off failed', err);
+            this.showError('Report saved, but sign-off failed.');
+            this.loading = false;
+          },
+          complete: () => {
+            this.loading = false;
           }
+        });
+      },
+      error: (err) => {
+        console.error('Completion report submission failed', err);
 
-          this.loading = false;
-        },
-        complete: () => {
-          this.loading = false;
+        if (err.status === 403) {
+          this.showError('You are not allowed to complete this work order.');
+        } else if (err.status === 409) {
+          this.showError('This work order has already been completed.');
+        } else if (err.status === 400) {
+          this.showError('Invalid completion request.');
+        } else {
+          this.showError('Failed to submit completion report.');
         }
-      });
+
+        this.loading = false;
+      }
     });
-  }
+  });
+}
 
   openEditDialog() {
     const dialogRef = this.dialog.open(EditWorkOrderDialogComponent, {
@@ -766,6 +880,57 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
     this.snackBar.open(message, 'Close', {
       duration: 4000,
       panelClass: ['snackbar-error']
+    });
+  }
+
+  loadCompletionReport() {
+    this.api.getCompletionReport(this.id).subscribe({
+      next: (res: any) => {
+        this.completionReport = res;
+      },
+      error: () => {
+        this.completionReport = null;
+      }
+    });
+  }
+
+  openCompletionReportDialog() {
+    const dialogRef = this.dialog.open(WorkorderCompletionReportDialogComponent, {
+      width: '680px',
+      data: { workorder: this.workorder }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (!result) return;
+
+      this.loading = true;
+
+      this.api.submitCompletionReport(this.id, result).subscribe({
+        next: () => {
+          this.showSuccess('Completion report submitted successfully.');
+          this.load();
+        },
+        error: (err) => {
+          console.error('Completion report submission failed', err);
+
+          if (err.status === 403) {
+            this.showError('You are not allowed to submit this report.');
+          } else if (err.status === 404) {
+            this.showError('Work order or report target was not found.');
+          } else if (err.status === 409) {
+            this.showError('This work order already has a completion report.');
+          } else if (err.status === 400) {
+            this.showError('Invalid completion report request.');
+          } else {
+            this.showError('Failed to submit completion report.');
+          }
+
+          this.loading = false;
+        },
+        complete: () => {
+          this.loading = false;
+        }
+      });
     });
   }
 
