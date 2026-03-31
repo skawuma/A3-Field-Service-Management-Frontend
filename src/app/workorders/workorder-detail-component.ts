@@ -14,7 +14,6 @@ import { EditWorkOrderDialogComponent } from '../workorders/workorder-edit-dialo
 import { WorkorderCompleteDialogComponent } from '../workorders/workorder-complete-dialog.component';
 import { environment } from '../../environments/environment.development';
 import { WorkOrderCompletionReportResponse } from '../core/models/completion-report.model';
-import { WorkorderCompletionReportDialogComponent } from './workorder-completion-report-dialog.component';
 
 interface WorkOrderAttachment {
   id: number;
@@ -109,6 +108,17 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
         <mat-card-title>Technician Notes</mat-card-title>
         <mat-card-content>
 
+          <!-- COMPLETION BANNER -->
+          <div *ngIf="workorder.status === 'COMPLETED'" class="completion-banner">
+            <mat-icon>check_circle</mat-icon>
+            <div>
+              <div class="completion-title">Work Order Completed</div>
+              <div class="completion-subtitle">
+                This work order has been signed off and is now read-only.
+              </div>
+            </div>
+          </div>
+
           <!-- TECH EDIT AREA -->
           <div *ngIf="isTech">
             <mat-form-field appearance="outline" class="full-width">
@@ -116,16 +126,10 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
               <textarea
                 matInput
                 rows="4"
-                [(ngModel)]="techForm.description">
+                [(ngModel)]="techForm.description"
+                [disabled]="loading || workorder.status === 'COMPLETED'">
               </textarea>
             </mat-form-field>
-
-            <!-- <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Status</mat-label>
-              <mat-select [(ngModel)]="techForm.status">
-                <mat-option value="IN_PROGRESS">In Progress</mat-option>
-              </mat-select>
-            </mat-form-field> -->
 
             <div class="tech-actions">
               <button
@@ -148,17 +152,6 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
                 <mat-spinner *ngIf="loading" diameter="18"></mat-spinner>
                 {{ loading ? 'Processing...' : 'Complete & Sign Off' }}
               </button>
-
-              <!-- <button
-                mat-stroked-button
-                color="primary"
-                (click)="openCompletionReportDialog()"
-                [disabled]="loading || workorder.status === 'COMPLETED' || !!completionReport">
-
-                <mat-icon *ngIf="!loading">assignment_turned_in</mat-icon>
-                <mat-spinner *ngIf="loading" diameter="18"></mat-spinner>
-                {{ loading ? 'Processing...' : 'Submit Report' }}
-               </button> -->
             </div>
           </div>
 
@@ -171,6 +164,9 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
           <div *ngIf="workorder.completionNotes" class="completion-notes">
             <h4>Completion Notes</h4>
             <p>{{ workorder.completionNotes }}</p>
+            <small *ngIf="workorder.completedAt">
+              Signed off on {{ workorder.completedAt | date:'MM/dd/yyyy h:mm a' }}
+            </small>
           </div>
 
           <!-- Signature Preview -->
@@ -182,34 +178,43 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
               class="signature-image" />
           </div>
 
+          <!-- Structured Completion Report -->
           <div *ngIf="completionReport" class="completion-report">
-  <h4>Structured Completion Report</h4>
+            <div class="report-header">
+              <mat-icon>assignment_turned_in</mat-icon>
+              <h4>Structured Completion Report</h4>
+            </div>
 
-  <div class="row">
-    <div class="label">FA Tag / Device:</div>
-    <div class="value">{{ completionReport.faTag }}</div>
-  </div>
+            <div class="row">
+              <div class="label">FA Tag / Device:</div>
+              <div class="value">{{ completionReport.faTag }}</div>
+            </div>
 
-  <div class="row">
-    <div class="label">Issue Resolved:</div>
-    <div class="value">{{ completionReport.issueResolved ? 'Yes' : 'No' }}</div>
-  </div>
+            <div class="row">
+              <div class="label">Issue Resolved:</div>
+              <div class="value">{{ completionReport.issueResolved ? 'Yes' : 'No' }}</div>
+            </div>
 
-  <div class="row">
-    <div class="label">Replacement Needed:</div>
-    <div class="value">{{ completionReport.replacementNeeded }}</div>
-  </div>
+            <div class="row">
+              <div class="label">Replacement Needed:</div>
+              <div class="value">{{ completionReport.replacementNeeded }}</div>
+            </div>
 
-  <div class="row">
-    <div class="label">Return Visit Required:</div>
-    <div class="value">{{ completionReport.returnVisitRequired ? 'Yes' : 'No' }}</div>
-  </div>
+            <div class="row">
+              <div class="label">Return Visit Required:</div>
+              <div class="value">{{ completionReport.returnVisitRequired ? 'Yes' : 'No' }}</div>
+            </div>
 
-  <div class="row">
-    <div class="label">Summary:</div>
-    <div class="value">{{ completionReport.summaryOfWork }}</div>
-  </div>
-</div>
+            <div class="row">
+              <div class="label">Summary:</div>
+              <div class="value">{{ completionReport.summaryOfWork }}</div>
+            </div>
+
+            <div class="row">
+              <div class="label">Submitted:</div>
+              <div class="value">{{ completionReport.completedAt | date:'MM/dd/yyyy h:mm a' }}</div>
+            </div>
+          </div>
 
         </mat-card-content>
       </mat-card>
@@ -225,7 +230,7 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
               #fileInput
               type="file"
               (change)="onFileSelected($event)"
-              [disabled]="uploading" />
+              [disabled]="uploading || workorder.status === 'COMPLETED'" />
 
             <span class="selected-file" *ngIf="selectedFile">
               {{ selectedFile.name }}
@@ -235,7 +240,7 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
               mat-raised-button
               color="primary"
               (click)="upload(fileInput)"
-              [disabled]="!selectedFile || uploading">
+              [disabled]="!selectedFile || uploading || workorder.status === 'COMPLETED'">
               <mat-spinner *ngIf="uploading" diameter="18"></mat-spinner>
               <span *ngIf="!uploading">Upload</span>
             </button>
@@ -244,7 +249,7 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
               mat-stroked-button
               color="warn"
               (click)="clearSelectedFile(fileInput)"
-              [disabled]="uploading || !selectedFile">
+              [disabled]="uploading || !selectedFile || workorder.status === 'COMPLETED'">
               Clear
             </button>
 
@@ -297,23 +302,21 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
       </mat-card>
 
       <!-- ACTIVITY TIMELINE -->
-      <mat-card class="section-card">
-        <mat-card-title>Activity Timeline</mat-card-title>
-        <mat-card-content>
-          <app-workorder-timeline [workorderId]="id"></app-workorder-timeline>
-        </mat-card-content>
-      </mat-card>
+ <mat-card class="section-card" *ngIf="!isTech">
+  <mat-card-title>Activity Timeline</mat-card-title>
+  <mat-card-content>
+    <app-workorder-timeline [workorderId]="id"></app-workorder-timeline>
+  </mat-card-content>
+</mat-card>
 
       <!-- ADMIN / DISPATCH FULL CONTROLS -->
       <mat-card class="section-card" *ngIf="!isTech">
         <mat-card-title>Admin / Dispatch Controls</mat-card-title>
         <mat-card-content>
-
           <button mat-raised-button color="primary" (click)="openEditDialog()">
             <mat-icon>edit</mat-icon>
             Edit Work Order
           </button>
-
         </mat-card-content>
       </mat-card>
 
@@ -377,7 +380,7 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
     .section-card { padding: 10px; }
 
     .row { display: flex; margin-bottom: 8px; }
-    .label { width: 130px; font-weight: 600; }
+    .label { width: 150px; font-weight: 600; }
     .value { flex: 1; }
 
     .priority-chip {
@@ -394,13 +397,34 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
     .priority-critical { background:#ffebee; color:#c62828; }
 
     .full-width { width: 100%; }
-    .mr-2 { margin-right: 8px; }
 
     .tech-actions {
       display: flex;
       align-items: center;
       gap: 12px;
       flex-wrap: wrap;
+    }
+
+    .completion-banner {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding: 14px 16px;
+      border-radius: 10px;
+      background: #ecfdf3;
+      border: 1px solid #b7ebc6;
+      color: #166534;
+    }
+
+    .completion-title {
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .completion-subtitle {
+      font-size: 13px;
+      color: #166534;
     }
 
     .completion-notes {
@@ -480,16 +504,25 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
       color: #777;
     }
 
-    button:hover {
-      transform: translateY(-1px);
-      transition: all 0.2s ease;
+    .completion-report {
+      margin-top: 18px;
+      padding-top: 12px;
+      border-top: 1px solid #e5e7eb;
     }
 
-    .completion-report {
-  margin-top: 18px;
-  padding-top: 12px;
-  border-top: 1px solid #e5e7eb;
-}
+    .report-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .report-header h4 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 700;
+      color: #374151;
+    }
 
     .selected-file {
       font-size: 13px;
@@ -523,8 +556,6 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
 
   techForm = {
     description: ''
-    
-   , status: 'IN_PROGRESS'
   };
 
   constructor(
@@ -534,7 +565,7 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
     private router: Router,
     private dialog: MatDialog,
     private snackBar: MatSnackBar
-  ) { }
+  ) {}
 
   ngOnInit() {
     this.id = Number(this.route.snapshot.paramMap.get('id'));
@@ -550,10 +581,8 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
     this.api.getOne('workorders', this.id).subscribe({
       next: (res: any) => {
         this.workorder = res;
+        this.techForm.description = res.description || '';
 
-        this.techForm.description = res.description;
-         this.techForm.status = res.status === 'COMPLETED' ? 'IN_PROGRESS' : res.status;
-        this.techForm.description = res.description;
         if (!this.isTech && res.assignedTechId) {
           this.loadTechnician(res.assignedTechId);
         } else if (this.isTech) {
@@ -635,7 +664,7 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
   }
 
   upload(fileInput: HTMLInputElement) {
-    if (!this.selectedFile || this.uploading) return;
+    if (!this.selectedFile || this.uploading || this.workorder?.status === 'COMPLETED') return;
 
     this.uploading = true;
 
@@ -723,120 +752,80 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
       assignedTechId: this.workorder.assignedTechId,
       scheduledDate: this.workorder.scheduledDate,
       priority: this.workorder.priority,
-       status: this.techForm.status
-     // status: this.workorder.status
+      status: this.workorder.status
     };
 
     this.api.put(`workorders/${this.id}`, body).subscribe({
       next: () => {
-        this.showSuccess('Work order updated successfully.');
+        this.showSuccess('Notes saved successfully.');
         this.load();
       },
       error: () => {
-        this.showError('Failed to update work order.');
+        this.showError('Failed to save notes.');
       },
       complete: () => this.loading = false
     });
   }
 
-  // openCompleteDialog() {
-  //   const dialogRef = this.dialog.open(WorkorderCompleteDialogComponent, {
-  //     width: '760px',
-  //     data: { workorder: this.workorder }
-  //   });
-
-  //   dialogRef.afterClosed().subscribe(result => {
-  //     if (!result) return;
-
-  //     this.loading = true;
-
-  //     this.api.post(`workorders/${this.id}/complete`, result).subscribe({
-  //       next: () => {
-  //         this.showSuccess('Work order completed successfully.');
-  //         this.load();
-  //       },
-  //       error: (err) => {
-  //         console.error('Completion failed', err);
-
-  //         if (err.status === 403) {
-  //           this.showError('You are not allowed to complete this work order.');
-  //         } else if (err.status === 400) {
-  //           this.showError('Invalid completion request.');
-  //         } else {
-  //           this.showError('Failed to complete work order.');
-  //         }
-
-  //         this.loading = false;
-  //       },
-  //       complete: () => {
-  //         this.loading = false;
-  //       }
-  //     });
-  //   });
-  // }
-
-
   openCompleteDialog() {
-  const dialogRef = this.dialog.open(WorkorderCompleteDialogComponent, {
-    width: '760px',
-    data: { workorder: this.workorder }
-  });
-
-  dialogRef.afterClosed().subscribe(result => {
-    if (!result) return;
-
-    this.loading = true;
-
-    const reportBody = {
-      faTag: result.faTag,
-      issueResolved: result.issueResolved,
-      replacementNeeded: result.replacementNeeded,
-      returnVisitRequired: result.returnVisitRequired,
-      summaryOfWork: result.summaryOfWork
-    };
-
-    const completeBody = {
-      signatureDataUrl: result.signatureDataUrl,
-      completionNotes: result.completionNotes
-    };
-
-    this.api.submitCompletionReport(this.id, reportBody).subscribe({
-      next: () => {
-            console.log('✅ REPORT SUCCESS');
-        this.api.post(`workorders/${this.id}/complete`, completeBody).subscribe({
-          next: () => {
-             console.log('✅ COMPLETE SUCCESS');
-            this.showSuccess('Work order completed successfully.');
-            this.load();
-          },
-          error: (err) => {
-            console.error('Sign-off failed', err);
-            this.showError('Report saved, but sign-off failed.');
-            this.loading = false;
-          },
-          complete: () => {
-            this.loading = false;
-          }
-        });
-      },
-      error: (err) => {
-        console.error('Completion report submission failed', err);
-
-        if (err.status === 403) {
-          this.showError('You are not allowed to complete this work order.');
-        } else if (err.status === 409) {
-          this.showError('This work order has already been completed.');
-        } else if (err.status === 400) {
-          this.showError('Invalid completion request.');
-        } else {
-          this.showError('Failed to submit completion report.');
-        }
-
-        this.loading = false;
-      }
+    const dialogRef = this.dialog.open(WorkorderCompleteDialogComponent, {
+      width: '760px',
+      data: { workorder: this.workorder }
     });
-  });
-}
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (!result) return;
+
+      this.loading = true;
+
+      const reportBody = {
+        faTag: result.faTag,
+        issueResolved: result.issueResolved,
+        replacementNeeded: result.replacementNeeded,
+        returnVisitRequired: result.returnVisitRequired,
+        summaryOfWork: result.summaryOfWork
+      };
+
+      const completeBody = {
+        signatureDataUrl: result.signatureDataUrl,
+        completionNotes: result.completionNotes
+      };
+
+      this.api.submitCompletionReport(this.id, reportBody).subscribe({
+        next: () => {
+          this.api.post(`workorders/${this.id}/complete`, completeBody).subscribe({
+            next: () => {
+              this.showSuccess('Work order completed successfully.');
+              this.load();
+            },
+            error: (err) => {
+              console.error('Sign-off failed', err);
+              this.showError('Report saved, but sign-off failed.');
+              this.loading = false;
+            },
+            complete: () => {
+              this.loading = false;
+            }
+          });
+        },
+        error: (err) => {
+          console.error('Completion report submission failed', err);
+
+          if (err.status === 403) {
+            this.showError('You are not allowed to complete this work order.');
+          } else if (err.status === 409) {
+            this.showError('This work order has already been completed.');
+          } else if (err.status === 400) {
+            this.showError('Invalid completion request.');
+          } else {
+            this.showError('Failed to submit completion report.');
+          }
+
+          this.loading = false;
+        }
+      });
+    });
+  }
 
   openEditDialog() {
     const dialogRef = this.dialog.open(EditWorkOrderDialogComponent, {
@@ -891,46 +880,6 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
       error: () => {
         this.completionReport = null;
       }
-    });
-  }
-
-  openCompletionReportDialog() {
-    const dialogRef = this.dialog.open(WorkorderCompletionReportDialogComponent, {
-      width: '680px',
-      data: { workorder: this.workorder }
-    });
-
-    dialogRef.afterClosed().subscribe(result => {
-      if (!result) return;
-
-      this.loading = true;
-
-      this.api.submitCompletionReport(this.id, result).subscribe({
-        next: () => {
-          this.showSuccess('Completion report submitted successfully.');
-          this.load();
-        },
-        error: (err) => {
-          console.error('Completion report submission failed', err);
-
-          if (err.status === 403) {
-            this.showError('You are not allowed to submit this report.');
-          } else if (err.status === 404) {
-            this.showError('Work order or report target was not found.');
-          } else if (err.status === 409) {
-            this.showError('This work order already has a completion report.');
-          } else if (err.status === 400) {
-            this.showError('Invalid completion report request.');
-          } else {
-            this.showError('Failed to submit completion report.');
-          }
-
-          this.loading = false;
-        },
-        complete: () => {
-          this.loading = false;
-        }
-      });
     });
   }
 

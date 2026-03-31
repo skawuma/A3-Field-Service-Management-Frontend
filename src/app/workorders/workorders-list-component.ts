@@ -154,10 +154,13 @@ interface WorkOrder {
                 <mat-icon>person_add</mat-icon>
               </button>
               <!-- TIMELINE -->
+
+               
 <button
+*ngIf="!isTech"
   mat-icon-button
   matTooltip="Timeline"
-  (click)="openTimeline(w); $event.stopPropagation()">
+  (click)="openTimeline(w); $event.stopPropagation()" >
   <mat-icon>history</mat-icon>
 </button>
 
