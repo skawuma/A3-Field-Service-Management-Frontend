@@ -93,4 +93,12 @@ getCompletionReport(id: number) {
   return this.get(`workorders/${id}/completion-report`);
 }
 
+startWorkOrder(id: number) {
+  return this.post(`workorders/${id}/start`, {});
+}
+
+returnWorkOrderToOpen(id: number) {
+  return this.post(`workorders/${id}/return-to-open`, {});
+}
+
 }

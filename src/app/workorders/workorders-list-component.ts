@@ -89,6 +89,7 @@ interface WorkOrder {
             <mat-option value="ASSIGNED">Assigned</mat-option>
             <mat-option value="IN_PROGRESS">In Progress</mat-option>
             <mat-option value="COMPLETED">Completed</mat-option>
+            <mat-option value="CANCELLED">Cancelled</mat-option>
           </mat-select>
         </mat-form-field>
 
@@ -329,7 +330,8 @@ openEditDialog(w: WorkOrder) {
       OPEN: 'status-open',
       ASSIGNED: 'status-assigned',
       IN_PROGRESS: 'status-in-progress',
-      COMPLETED: 'status-completed'
+      COMPLETED: 'status-completed',
+      CANCELLED: 'status-cancelled'
     };
     return map[s] || 'status-default';
   }

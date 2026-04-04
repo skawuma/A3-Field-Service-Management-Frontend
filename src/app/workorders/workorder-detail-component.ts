@@ -119,6 +119,16 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
             </div>
           </div>
 
+          <div *ngIf="workorder.status === 'CANCELLED'" class="cancelled-banner">
+            <mat-icon>cancel</mat-icon>
+            <div>
+              <div class="cancelled-title">Work Order Cancelled</div>
+              <div class="cancelled-subtitle">
+                This work order is cancelled and cannot be started or completed until an admin updates it.
+              </div>
+            </div>
+          </div>
+
           <!-- TECH EDIT AREA -->
           <div *ngIf="isTech">
             <mat-form-field appearance="outline" class="full-width">
@@ -127,31 +137,77 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
                 matInput
                 rows="4"
                 [(ngModel)]="techForm.description"
-                [disabled]="loading || workorder.status === 'COMPLETED'">
+                [disabled]="isBusy || isReadOnlyStatus">
               </textarea>
             </mat-form-field>
 
+            <div *ngIf="canStartWork" class="start-banner">
+              <mat-icon>play_circle</mat-icon>
+              <div>
+                <div class="start-banner-title">Ready to start</div>
+                <div class="start-banner-subtitle">
+                  This work order is assigned to you. Start work when you begin the visit.
+                </div>
+              </div>
+            </div>
+
             <div class="tech-actions">
+              <button
+                *ngIf="canStartWork"
+                mat-flat-button
+                color="accent"
+                (click)="startWork()"
+                [disabled]="isBusy">
+
+                <mat-icon *ngIf="action !== 'start'">play_arrow</mat-icon>
+                <mat-spinner *ngIf="action === 'start'" diameter="18"></mat-spinner>
+                {{ action === 'start' ? 'Starting...' : 'Start Work' }}
+              </button>
+
+              <button
+                *ngIf="canReturnToOpen"
+                mat-stroked-button
+                color="warn"
+                (click)="returnToOpen()"
+                [disabled]="isBusy">
+
+                <mat-icon *ngIf="action !== 'release'">assignment_return</mat-icon>
+                <mat-spinner *ngIf="action === 'release'" diameter="18"></mat-spinner>
+                {{ action === 'release' ? 'Returning...' : "Can't Start" }}
+              </button>
+
               <button
                 mat-raised-button
                 color="primary"
                 (click)="saveTechUpdate()"
-                [disabled]="loading || workorder.status === 'COMPLETED'">
+                [disabled]="isBusy || isReadOnlyStatus">
 
-                <mat-spinner *ngIf="loading" diameter="18"></mat-spinner>
-                {{ loading ? 'Saving...' : 'Save Notes' }}
+                <mat-spinner *ngIf="action === 'save'" diameter="18"></mat-spinner>
+                {{ action === 'save' ? 'Saving...' : 'Save Notes' }}
               </button>
 
               <button
                 mat-stroked-button
                 color="accent"
                 (click)="openCompleteDialog()"
-                [disabled]="loading || workorder.status === 'COMPLETED'">
+                [disabled]="isBusy || !canCompleteWork">
 
-                <mat-icon *ngIf="!loading">draw</mat-icon>
-                <mat-spinner *ngIf="loading" diameter="18"></mat-spinner>
-                {{ loading ? 'Processing...' : 'Complete & Sign Off' }}
+                <mat-icon *ngIf="action !== 'complete'">draw</mat-icon>
+                <mat-spinner *ngIf="action === 'complete'" diameter="18"></mat-spinner>
+                {{ action === 'complete' ? 'Processing...' : 'Complete & Sign Off' }}
               </button>
+            </div>
+
+            <div
+              *ngIf="canReturnToOpen"
+              class="action-hint">
+              If something came up, use the Can't Start action to release this job back to Open so dispatch can reassign it.
+            </div>
+
+            <div
+              *ngIf="!canCompleteWork && !canReturnToOpen && !isReadOnlyStatus"
+              class="action-hint">
+              Start work before submitting the completion report and sign-off.
             </div>
           </div>
 
@@ -230,7 +286,7 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
               #fileInput
               type="file"
               (change)="onFileSelected($event)"
-              [disabled]="uploading || workorder.status === 'COMPLETED'" />
+              [disabled]="uploading || isReadOnlyStatus" />
 
             <span class="selected-file" *ngIf="selectedFile">
               {{ selectedFile.name }}
@@ -240,7 +296,7 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
               mat-raised-button
               color="primary"
               (click)="upload(fileInput)"
-              [disabled]="!selectedFile || uploading || workorder.status === 'COMPLETED'">
+              [disabled]="!selectedFile || uploading || isReadOnlyStatus">
               <mat-spinner *ngIf="uploading" diameter="18"></mat-spinner>
               <span *ngIf="!uploading">Upload</span>
             </button>
@@ -249,7 +305,7 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
               mat-stroked-button
               color="warn"
               (click)="clearSelectedFile(fileInput)"
-              [disabled]="uploading || !selectedFile || workorder.status === 'COMPLETED'">
+              [disabled]="uploading || !selectedFile || isReadOnlyStatus">
               Clear
             </button>
 
@@ -302,12 +358,12 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
       </mat-card>
 
       <!-- ACTIVITY TIMELINE -->
- <mat-card class="section-card" *ngIf="!isTech">
-  <mat-card-title>Activity Timeline</mat-card-title>
-  <mat-card-content>
-    <app-workorder-timeline [workorderId]="id"></app-workorder-timeline>
-  </mat-card-content>
-</mat-card>
+      <mat-card class="section-card" *ngIf="!isTech">
+        <mat-card-title>Activity Timeline</mat-card-title>
+        <mat-card-content>
+          <app-workorder-timeline [workorderId]="id"></app-workorder-timeline>
+        </mat-card-content>
+      </mat-card>
 
       <!-- ADMIN / DISPATCH FULL CONTROLS -->
       <mat-card class="section-card" *ngIf="!isTech">
@@ -370,6 +426,7 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
       color:#2e7d32;
       animation: pulseSuccess 0.6s ease;
     }
+    .status-cancelled { background:#ffebee; color:#b91c1c; }
 
     @keyframes pulseSuccess {
       0% { transform: scale(1); }
@@ -405,6 +462,34 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
       flex-wrap: wrap;
     }
 
+    .start-banner {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding: 14px 16px;
+      border-radius: 10px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1d4ed8;
+    }
+
+    .start-banner-title {
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .start-banner-subtitle {
+      font-size: 13px;
+      color: #1e40af;
+    }
+
+    .action-hint {
+      margin-top: 10px;
+      font-size: 13px;
+      color: #6b7280;
+    }
+
     .completion-banner {
       display: flex;
       align-items: center;
@@ -417,7 +502,24 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
       color: #166534;
     }
 
+    .cancelled-banner {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding: 14px 16px;
+      border-radius: 10px;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #b91c1c;
+    }
+
     .completion-title {
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .cancelled-title {
       font-weight: 700;
       font-size: 14px;
     }
@@ -425,6 +527,11 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
     .completion-subtitle {
       font-size: 13px;
       color: #166534;
+    }
+
+    .cancelled-subtitle {
+      font-size: 13px;
+      color: #b91c1c;
     }
 
     .completion-notes {
@@ -553,6 +660,7 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
   isTech = false;
 
   loading = false;
+  action: 'save' | 'start' | 'complete' | 'release' | null = null;
 
   techForm = {
     description: ''
@@ -573,6 +681,32 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
     this.isTech = this.role === 'TECH';
 
     this.load();
+  }
+
+  get isBusy(): boolean {
+    return this.loading || this.action !== null;
+  }
+
+  get canStartWork(): boolean {
+    return this.isTech
+      && !!this.workorder
+      && (this.workorder.status === 'OPEN' || this.workorder.status === 'ASSIGNED');
+  }
+
+  get canCompleteWork(): boolean {
+    return this.isTech
+      && !!this.workorder
+      && this.workorder.status === 'IN_PROGRESS';
+  }
+
+  get canReturnToOpen(): boolean {
+    return this.isTech
+      && !!this.workorder
+      && (this.workorder.status === 'OPEN' || this.workorder.status === 'ASSIGNED');
+  }
+
+  get isReadOnlyStatus(): boolean {
+    return this.workorder?.status === 'COMPLETED' || this.workorder?.status === 'CANCELLED';
   }
 
   load() {
@@ -597,7 +731,9 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
         this.showError('Failed to load work order.');
         this.router.navigate(['/workorders']);
       },
-      complete: () => this.loading = false
+      complete: () => {
+        this.loading = false;
+      }
     });
   }
 
@@ -653,6 +789,17 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
     });
   }
 
+  loadCompletionReport() {
+    this.api.getCompletionReport(this.id).subscribe({
+      next: (res: any) => {
+        this.completionReport = res;
+      },
+      error: () => {
+        this.completionReport = null;
+      }
+    });
+  }
+
   onFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     this.selectedFile = input.files?.[0] ?? null;
@@ -664,7 +811,7 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
   }
 
   upload(fileInput: HTMLInputElement) {
-    if (!this.selectedFile || this.uploading || this.workorder?.status === 'COMPLETED') return;
+    if (!this.selectedFile || this.uploading || this.isReadOnlyStatus) return;
 
     this.uploading = true;
 
@@ -743,7 +890,9 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
   }
 
   saveTechUpdate() {
-    this.loading = true;
+    if (this.isBusy || this.isReadOnlyStatus) return;
+
+    this.action = 'save';
 
     const body = {
       clientName: this.workorder.clientName,
@@ -758,25 +907,89 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
     this.api.put(`workorders/${this.id}`, body).subscribe({
       next: () => {
         this.showSuccess('Notes saved successfully.');
+        this.action = null;
         this.load();
       },
       error: () => {
         this.showError('Failed to save notes.');
+        this.action = null;
+      }
+    });
+  }
+
+  startWork() {
+    if (!this.canStartWork || this.isBusy) return;
+
+    this.action = 'start';
+
+    this.api.startWorkOrder(this.id).subscribe({
+      next: () => {
+        this.showSuccess('Work order moved to In Progress.');
+        this.action = null;
+        this.load();
       },
-      complete: () => this.loading = false
+      error: (err) => {
+        if (err.status === 403) {
+          this.showError('You are not allowed to start this work order.');
+        } else if (err.status === 409 || err.status === 400) {
+          this.showError(err.error?.message || 'This work order cannot be started right now.');
+        } else {
+          this.showError('Failed to start work order.');
+        }
+
+        this.action = null;
+      }
+    });
+  }
+
+  returnToOpen() {
+    if (!this.canReturnToOpen || this.isBusy) return;
+
+    const confirmed = window.confirm(
+      'Return this work order to Open and remove it from your assignments so dispatch can reassign it?'
+    );
+
+    if (!confirmed) return;
+
+    this.action = 'release';
+
+    this.api.returnWorkOrderToOpen(this.id).subscribe({
+      next: () => {
+        this.showSuccess('Work order returned to Open for reassignment.');
+        this.action = null;
+        this.router.navigate(['/workorders']);
+      },
+      error: (err) => {
+        if (err.status === 403) {
+          this.showError('You are not allowed to release this work order.');
+        } else if (err.status === 409 || err.status === 400) {
+          this.showError(err.error?.message || 'This work order cannot be returned to Open right now.');
+        } else {
+          this.showError('Failed to return work order to Open.');
+        }
+
+        this.action = null;
+      }
     });
   }
 
   openCompleteDialog() {
+    if (!this.canCompleteWork || this.isBusy || this.isReadOnlyStatus) {
+      if (!this.canCompleteWork && !this.isReadOnlyStatus) {
+        this.showError('Start work before completing this work order.');
+      }
+      return;
+    }
+
     const dialogRef = this.dialog.open(WorkorderCompleteDialogComponent, {
       width: '760px',
       data: { workorder: this.workorder }
     });
 
     dialogRef.afterClosed().subscribe(result => {
-      if (!result) return;
+      if (!result || this.isBusy) return;
 
-      this.loading = true;
+      this.action = 'complete';
 
       const reportBody = {
         faTag: result.faTag,
@@ -796,15 +1009,13 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
           this.api.post(`workorders/${this.id}/complete`, completeBody).subscribe({
             next: () => {
               this.showSuccess('Work order completed successfully.');
+              this.action = null;
               this.load();
             },
             error: (err) => {
               console.error('Sign-off failed', err);
               this.showError('Report saved, but sign-off failed.');
-              this.loading = false;
-            },
-            complete: () => {
-              this.loading = false;
+              this.action = null;
             }
           });
         },
@@ -821,7 +1032,7 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
             this.showError('Failed to submit completion report.');
           }
 
-          this.loading = false;
+          this.action = null;
         }
       });
     });
@@ -845,7 +1056,8 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
       OPEN: 'status-open',
       ASSIGNED: 'status-assigned',
       IN_PROGRESS: 'status-in-progress',
-      COMPLETED: 'status-completed'
+      COMPLETED: 'status-completed',
+      CANCELLED: 'status-cancelled'
     }[s] || 'status-default';
   }
 
@@ -869,17 +1081,6 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
     this.snackBar.open(message, 'Close', {
       duration: 4000,
       panelClass: ['snackbar-error']
-    });
-  }
-
-  loadCompletionReport() {
-    this.api.getCompletionReport(this.id).subscribe({
-      next: (res: any) => {
-        this.completionReport = res;
-      },
-      error: () => {
-        this.completionReport = null;
-      }
     });
   }
 
