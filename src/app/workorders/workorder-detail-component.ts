@@ -930,8 +930,14 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
         this.action = null;
         this.load();
       },
-      error: () => {
-        this.showError('Failed to save notes.');
+      error: (err) => {
+        if (err.status === 403) {
+          this.showError('You are not allowed to update notes for this work order.');
+        } else if (err.status === 400 || err.status === 409) {
+          this.showError(err.error?.message || 'This work order cannot be updated right now.');
+        } else {
+          this.showError('Failed to save notes.');
+        }
         this.action = null;
       }
     });
@@ -1037,7 +1043,13 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
             },
             error: (err) => {
               console.error('Sign-off failed', err);
-              this.showError('Report saved, but sign-off failed.');
+              if (err.status === 403) {
+                this.showError('You are not allowed to sign off this work order.');
+              } else if (err.status === 400 || err.status === 409) {
+                this.showError(err.error?.message || 'Report saved, but sign-off could not be completed.');
+              } else {
+                this.showError('Report saved, but sign-off failed.');
+              }
               this.action = null;
             }
           });

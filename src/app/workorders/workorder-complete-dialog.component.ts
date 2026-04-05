@@ -31,7 +31,7 @@ import { MATERIAL_IMPORTS } from '../material-imports';
 
         <mat-form-field appearance="outline" class="full-width">
           <mat-label>FA Tag / Device</mat-label>
-          <input matInput [(ngModel)]="form.faTag" />
+          <input matInput [(ngModel)]="form.faTag" (ngModelChange)="clearValidation()" />
         </mat-form-field>
 
         <mat-slide-toggle [(ngModel)]="form.issueResolved">
@@ -57,6 +57,7 @@ import { MATERIAL_IMPORTS } from '../material-imports';
             matInput
             rows="4"
             [(ngModel)]="form.summaryOfWork"
+            (ngModelChange)="clearValidation()"
             placeholder="Describe what was done onsite...">
           </textarea>
         </mat-form-field>
@@ -102,6 +103,10 @@ import { MATERIAL_IMPORTS } from '../material-imports';
           <p class="signature-hint">
             Use your mouse or finger to sign.
           </p>
+        </div>
+
+        <div *ngIf="validationMessage" class="validation-error">
+          {{ validationMessage }}
         </div>
 
       </div>
@@ -194,6 +199,16 @@ import { MATERIAL_IMPORTS } from '../material-imports';
       color: #6b7280;
     }
 
+    .validation-error {
+      border-radius: 10px;
+      border: 1px solid #fecaca;
+      background: #fef2f2;
+      color: #b91c1c;
+      padding: 12px 14px;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
     @media (max-width: 768px) {
       .dialog-body {
         min-width: unset;
@@ -219,6 +234,7 @@ export class WorkorderCompleteDialogComponent implements AfterViewInit {
   private ctx!: CanvasRenderingContext2D;
   private drawing = false;
   private hasSignature = false;
+  validationMessage = '';
 
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: { workorder: any },
@@ -261,6 +277,7 @@ export class WorkorderCompleteDialogComponent implements AfterViewInit {
   }
 
   startDraw(event: MouseEvent) {
+    this.clearValidation();
     this.drawing = true;
     const { x, y } = this.getCoordinates(event);
     this.ctx.beginPath();
@@ -281,6 +298,7 @@ export class WorkorderCompleteDialogComponent implements AfterViewInit {
 
     if (!event.touches.length) return;
 
+    this.clearValidation();
     this.drawing = true;
     const { x, y } = this.getCoordinates(event.touches[0]);
     this.ctx.beginPath();
@@ -318,21 +336,26 @@ export class WorkorderCompleteDialogComponent implements AfterViewInit {
     this.dialogRef.close();
   }
 
+  clearValidation() {
+    this.validationMessage = '';
+  }
+
   submit() {
     if (this.submitting) return;
+    this.validationMessage = '';
 
     if (!this.form.faTag.trim()) {
-      alert('FA Tag / Device is required.');
+      this.validationMessage = 'FA Tag / Device is required before you can complete this work order.';
       return;
     }
 
     if (!this.form.summaryOfWork.trim()) {
-      alert('Summary of Work Performed is required.');
+      this.validationMessage = 'Summary of work performed is required before sign-off.';
       return;
     }
 
     if (!this.hasSignature) {
-      alert('Signature is required before completion.');
+      this.validationMessage = 'Technician signature is required before completion.';
       return;
     }
 
