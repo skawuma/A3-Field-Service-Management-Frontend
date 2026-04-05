@@ -789,6 +789,9 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
 
   loadSignaturePreview() {
     if (!this.workorder?.signatureUrl) {
+      if (this.signaturePreviewObjectUrl) {
+        URL.revokeObjectURL(this.signaturePreviewObjectUrl);
+      }
       this.signaturePreviewObjectUrl = null;
       return;
     }
@@ -800,14 +803,18 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
         }
         this.signaturePreviewObjectUrl = URL.createObjectURL(blob);
       },
-      error: (err) => {
-        console.error('Failed to load signature preview', err);
+      error: () => {
         this.signaturePreviewObjectUrl = null;
       }
     });
   }
 
   loadCompletionReport() {
+    if (!this.workorder || (this.workorder.status !== 'IN_PROGRESS' && this.workorder.status !== 'COMPLETED')) {
+      this.completionReport = null;
+      return;
+    }
+
     this.api.getCompletionReport(this.id).subscribe({
       next: (res: any) => {
         this.completionReport = res;
@@ -846,8 +853,6 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
         this.showSuccess('Attachment uploaded successfully.');
       },
       error: (err) => {
-        console.error('Upload failed', err);
-
         if (err.status === 413) {
           this.showError('File is too large. Please upload a smaller file.');
         } else if (err.status === 400) {
@@ -888,8 +893,7 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
       },
-      error: (err) => {
-        console.error('Download failed', err);
+      error: () => {
         this.showError('Failed to download attachment.');
       }
     });
@@ -1042,7 +1046,6 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
               this.load();
             },
             error: (err) => {
-              console.error('Sign-off failed', err);
               if (err.status === 403) {
                 this.showError('You are not allowed to sign off this work order.');
               } else if (err.status === 400 || err.status === 409) {
@@ -1055,8 +1058,6 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
           });
         },
         error: (err) => {
-          console.error('Completion report submission failed', err);
-
           if (err.status === 403) {
             this.showError('You are not allowed to complete this work order.');
           } else if (err.status === 409) {
@@ -1145,8 +1146,6 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
           this.load();
         },
         error: (err) => {
-          console.error('Reopen failed', err);
-
           if (err.status === 403) {
             this.showError('You are not allowed to reopen this work order.');
           } else if (err.status === 400 || err.status === 409) {
@@ -1162,6 +1161,11 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    if (this.uploadSub) {
+      this.uploadSub.unsubscribe();
+      this.uploadSub = undefined;
+    }
+
     if (this.signaturePreviewObjectUrl) {
       URL.revokeObjectURL(this.signaturePreviewObjectUrl);
     }

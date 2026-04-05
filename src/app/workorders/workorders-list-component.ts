@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MATERIAL_IMPORTS } from '../material-imports';
 import { MatDialog } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
 
 import { MatTableDataSource } from '@angular/material/table';
 import { MatPaginator } from '@angular/material/paginator';
@@ -228,7 +229,8 @@ export class WorkordersListComponent implements OnInit, AfterViewInit {
     private api: ApiService,
     private dialog: MatDialog,
     private auth: AuthService,
-    private router: Router
+    private router: Router,
+    private snackBar: MatSnackBar
   ) {}
 
   ngOnInit() {
@@ -288,8 +290,13 @@ openEditDialog(w: WorkOrder) {
         this.dataSource.data = res.content;
         this.totalElements = res.totalElements;
       },
-      error: err => console.error(err),
-      complete: () => this.loading = false
+      error: () => {
+        this.loading = false;
+        this.showError('Failed to load work orders.');
+      },
+      complete: () => {
+        this.loading = false;
+      }
     });
   }
 
@@ -344,5 +351,12 @@ openEditDialog(w: WorkOrder) {
       CRITICAL: 'priority-critical'
     };
     return map[p || ''] || 'priority-default';
+  }
+
+  private showError(message: string) {
+    this.snackBar.open(message, 'Close', {
+      duration: 4000,
+      panelClass: ['snackbar-error']
+    });
   }
 }
