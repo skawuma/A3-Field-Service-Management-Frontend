@@ -1,17 +1,24 @@
-import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
+import { HttpContextToken, HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { AuthService } from '../services/auth-service';
 import { Router } from '@angular/router';
-import { catchError, throwError } from 'rxjs';
+import { catchError, switchMap, throwError } from 'rxjs';
+
+const REFRESH_RETRY = new HttpContextToken<boolean>(() => false);
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
   const router = inject(Router);
+  const requestUrl = req.url || '';
+  const isAuthRequest =
+    requestUrl.includes('/auth/login') ||
+    requestUrl.includes('/auth/refresh') ||
+    requestUrl.includes('/auth/register') ||
+    requestUrl.includes('/auth/me');
 
   const token = auth.getToken();
 
-  // ---- 1. Attach Authorization header ----
-  const authReq = token
+  const authReq = !isAuthRequest && token
     ? req.clone({
         setHeaders: { Authorization: `Bearer ${token}` }
       })
@@ -19,28 +26,37 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(authReq).pipe(
     catchError((error: HttpErrorResponse) => {
+      if (error.status !== 401) {
+        return throwError(() => error);
+      }
 
-      // ---- 2. Handle 401 (expired, invalid, missing token) ----
-      if (error.status === 401) {
-                const requestUrl = req.url || '';
-        const isAuthRequest =
-          requestUrl.includes('/auth/login') ||
-          requestUrl.includes('/auth/refresh') ||
-          requestUrl.includes('/auth/me');
+      if (isAuthRequest || req.context.get(REFRESH_RETRY) || !auth.hasValidRefreshToken()) {
+        auth.logout();
+        router.navigate(['/auth/login']);
+        return throwError(() => error);
+      }
 
-        if (isAuthRequest) {
+      return auth.refreshSession().pipe(
+        switchMap(() => {
+          const refreshedToken = auth.getToken();
+
+          if (!refreshedToken) {
+            auth.logout();
+            router.navigate(['/auth/login']);
+            return throwError(() => error);
+          }
+
+          return next(req.clone({
+            setHeaders: { Authorization: `Bearer ${refreshedToken}` },
+            context: req.context.set(REFRESH_RETRY, true)
+          }));
+        }),
+        catchError((refreshError: HttpErrorResponse) => {
           auth.logout();
           router.navigate(['/auth/login']);
-        }
-      }
-
-      // ---- 3. Handle 403 (forbidden) ----
-      if (error.status === 403) {
-        console.warn('Access denied (403): insufficient permissions.');
-        // (Optional: show snackbar)
-      }
-
-      return throwError(() => error);
+          return throwError(() => refreshError);
+        })
+      );
     })
   );
 };

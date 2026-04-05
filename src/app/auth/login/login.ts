@@ -4,7 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth-service';
 import { MATERIAL_IMPORTS } from '../../material-imports';
-
+import { ActivatedRoute } from '@angular/router';
+import { MatSnackBar } from '@angular/material/snack-bar';
 
 
 
@@ -72,22 +73,40 @@ import { MATERIAL_IMPORTS } from '../../material-imports';
 export class LoginComponent {
   email = '';
   password = '';
+ 
 
   constructor(
+    private route: ActivatedRoute,
     private auth: AuthService,
-    private router: Router
+    private router: Router,
+      private snackBar: MatSnackBar
   ) {}
 
-onSubmit() {
-  const loginPayload = {
-    email: this.email,   // backend likely expects "username"
-    password: this.password
-  };
+  ngOnInit(): void {
+    this.route.queryParamMap.subscribe(params => {
+      if (params.get('timedOut') === 'true') {
+        this.snackBar.open('Your session timed out due to inactivity. Please sign in again.', 'Close', {
+          duration: 4000
+        });
+      }
+    });
+  }
 
-  this.auth.login(loginPayload).subscribe({
-    next: () => this.router.navigate(['/dashboard']),
-    error: (err) => console.error('Login failed', err)
-  });
-}
+  onSubmit() {
+    const loginPayload = {
+      email: this.email,
+      password: this.password
+    };
+
+    this.auth.login(loginPayload).subscribe({
+      next: () => this.router.navigate(['/dashboard']),
+      error: (err) => {
+        const message = err.error?.message || 'Login failed. Please check your email and password.';
+        this.snackBar.open(message, 'Close', {
+          duration: 4000
+        });
+      }
+    });
+  }
 
 }

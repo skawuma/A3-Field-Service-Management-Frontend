@@ -1,7 +1,7 @@
-import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { RouterOutlet, RouterLink, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
-
+import { SessionTimeoutService } from '../services/session-timeout.service';
 import { MATERIAL_IMPORTS } from '../../material-imports';
 import { AuthService } from '../services/auth-service';
 
@@ -152,7 +152,7 @@ styles: [`
     }
   `]
 })
-export class MainLayoutComponent implements OnInit {
+export class MainLayoutComponent implements OnInit, OnDestroy {
 
   role: string | null = null;
   userEmail: string | null = null;
@@ -165,9 +165,9 @@ export class MainLayoutComponent implements OnInit {
   isTech = false;
 
   constructor(
+    private sessionTimeoutService: SessionTimeoutService,
     private auth: AuthService,
-    private router: Router,
-    private cd: ChangeDetectorRef
+    private router: Router
   ) {}
 
   ngOnInit() {
@@ -182,36 +182,9 @@ export class MainLayoutComponent implements OnInit {
     this.displayName = displayName || email || 'User';
     this.userInitials = this.getInitials(this.displayName);
     this.roleClass = this.getRoleClass(this.role);
+    this.sessionTimeoutService.startWatching();
+
   }
-
-// ngOnInit() {
-//   this.role = this.auth.getRole();
-
-//   // 🔥 Debug: See what role the UI is actually receiving
-//   console.log("ROLE FROM LOCAL STORAGE:", this.role);
-
-//   this.isAdmin = this.role === 'ADMIN';
-//   this.isDispatch = this.role === 'DISPATCH';
-//   this.isTech = this.role === 'TECH';
-
-//   const { email, displayName } = this.decodeUserInfoFromToken();
-//   this.userEmail = email;
-//   this.displayName = displayName || email || 'User';
-//   this.userInitials = this.getInitials(this.displayName);
-//   this.roleClass = this.getRoleClass(this.role);
-
-
-//   console.log(
-//   "%cMAIN LAYOUT ROLE CHECK",
-//   "color: #4caf50; font-weight: bold;"
-// );
-// console.log("role =", this.role);
-// console.log("isAdmin =", this.isAdmin);
-// console.log("isDispatch =", this.isDispatch);
-// console.log("isTech =", this.isTech);
-
-// this.cd.detectChanges();
-// }
 
 
 
@@ -252,4 +225,10 @@ export class MainLayoutComponent implements OnInit {
     this.auth.logout();
     this.router.navigate(['/auth/login']);
   }
+
+
+
+ngOnDestroy(): void {
+  this.sessionTimeoutService.stopWatching();
+}
 }

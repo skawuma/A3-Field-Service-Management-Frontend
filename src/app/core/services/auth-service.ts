@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { tap } from 'rxjs';
+import { Observable, of, throwError } from 'rxjs';
+import { catchError, finalize, map, shareReplay, tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment.development';
 
 interface LoginRequest {
@@ -14,14 +15,20 @@ interface AuthResponse {
   role: string;
 }
 
+interface JwtPayload {
+  exp?: number;
+  id?: number | string;
+  role?: string;
+  [key: string]: unknown;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-
   private readonly baseUrl = `${environment.apiUrl}/auth`;
-
   private readonly tokenKey = 'a3fsm_token';
   private readonly refreshKey = 'a3fsm_refresh';
   private readonly roleKey = 'a3fsm_role';
+  private refreshRequest$?: Observable<AuthResponse>;
 
   constructor(private http: HttpClient) {}
 
@@ -31,11 +38,7 @@ export class AuthService {
   login(payload: LoginRequest) {
     return this.http.post<AuthResponse>(`${this.baseUrl}/login`, payload)
       .pipe(
-        tap(res => {
-          localStorage.setItem(this.tokenKey, res.accessToken);
-          localStorage.setItem(this.refreshKey, res.refreshToken);
-          localStorage.setItem(this.roleKey, res.role);
-        })
+        tap(res => this.storeSession(res))
       );
   }
 
@@ -46,6 +49,46 @@ export class AuthService {
     localStorage.removeItem(this.tokenKey);
     localStorage.removeItem(this.refreshKey);
     localStorage.removeItem(this.roleKey);
+  }
+
+  refreshSession(): Observable<AuthResponse> {
+    const refreshToken = this.getRefreshToken();
+
+    if (!refreshToken || this.isTokenExpired(refreshToken)) {
+      return throwError(() => new Error('No valid refresh token available.'));
+    }
+
+    if (this.refreshRequest$) {
+      return this.refreshRequest$;
+    }
+
+    const request$ = this.http
+      .post<AuthResponse>(`${this.baseUrl}/refresh`, { refreshToken })
+      .pipe(
+        tap(response => this.storeSession(response)),
+        shareReplay({ bufferSize: 1, refCount: false }),
+        finalize(() => {
+          this.refreshRequest$ = undefined;
+        })
+      );
+
+    this.refreshRequest$ = request$;
+    return request$;
+  }
+
+  ensureValidSession(): Observable<boolean> {
+    if (this.hasValidAccessToken()) {
+      return of(true);
+    }
+
+    if (!this.hasValidRefreshToken()) {
+      return of(false);
+    }
+
+    return this.refreshSession().pipe(
+      map(() => true),
+      catchError(() => of(false))
+    );
   }
 
   // ------------------------------------
@@ -59,6 +102,16 @@ export class AuthService {
     return localStorage.getItem(this.refreshKey);
   }
 
+  hasValidAccessToken(): boolean {
+    const token = this.getToken();
+    return !!token && !this.isTokenExpired(token);
+  }
+
+  hasValidRefreshToken(): boolean {
+    const token = this.getRefreshToken();
+    return !!token && !this.isTokenExpired(token);
+  }
+
   // ------------------------------------
   // ROLE HELPERS
   // ------------------------------------
@@ -67,23 +120,13 @@ export class AuthService {
   // }
 
   getRole(): string | null {
-  const token = this.getToken();
-  if (!token) return null;
-
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    if (payload.role) {
-      return payload.role;  // 🎯 ALWAYS FROM JWT
+    const payload = this.decodeToken(this.getToken());
+    if (payload?.role) {
+      return payload.role;
     }
-  } catch (e) {
-    console.error("Failed to decode JWT", e);
+
+    return localStorage.getItem(this.roleKey);
   }
-
-  // fallback if anything goes wrong
-  return localStorage.getItem(this.roleKey);
-
-  
-}
 
 
   isAdmin(): boolean {
@@ -99,25 +142,44 @@ export class AuthService {
   }
 
   isAuthenticated(): boolean {
-    return !!this.getToken();
+    return this.hasValidAccessToken() || this.hasValidRefreshToken();
   }
 
   // ------------------------------------
 // USER ID FROM JWT
 // ------------------------------------
 getUserId(): number | null {
-  const token = this.getToken();
-  if (!token) return null;
+  const payload = this.decodeToken(this.getToken());
+  return payload?.id ? Number(payload.id) : null;
+}
 
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
+private storeSession(response: AuthResponse) {
+  localStorage.setItem(this.tokenKey, response.accessToken);
+  localStorage.setItem(this.refreshKey, response.refreshToken);
+  localStorage.setItem(this.roleKey, response.role);
+}
 
-    // Our backend will set payload.id soon
-    return payload.id ? Number(payload.id) : null;
+  private decodeToken(token: string | null): JwtPayload | null {
+    if (!token) {
+      return null;
+    }
 
-  } catch (e) {
-    return null;
+    try {
+      return JSON.parse(atob(token.split('.')[1])) as JwtPayload;
+    } catch {
+      return null;
+    }
   }
+
+  private isTokenExpired(token: string): boolean {
+    const payload = this.decodeToken(token);
+    const expiration = typeof payload?.['exp'] === 'number' ? payload['exp'] : null;
+
+  if (!expiration) {
+    return true;
+  }
+
+  return Date.now() >= (expiration * 1000);
 }
 
 }
