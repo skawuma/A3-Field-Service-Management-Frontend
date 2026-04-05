@@ -2,6 +2,10 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment.development';
+import {
+  WorkOrderCompletionReportRequest,
+  WorkOrderCompletionReportResponse
+} from '../models/completion-report.model';
 
 export interface PageResponse<T> {
   content: T[];
@@ -13,21 +17,22 @@ export interface PageResponse<T> {
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
-
-  private readonly baseUrl = environment.apiUrl;  // e.g. http://localhost:8080/api
+  private readonly baseUrl = environment.apiUrl;
 
   constructor(private http: HttpClient) {}
 
-  /** 
-   * SAFE URL BUILDER — Removes leading slash to prevent double-slash `//` issues 
-   */
   private buildUrl(path: string): string {
     const cleanPath = path.startsWith('/') ? path.slice(1) : path;
     return `${this.baseUrl}/${cleanPath}`;
   }
 
-  /** GET Paged Results */
-  getPage<T>(path: string, page: number, size: number, sort: string = 'lastName,asc', extraParams?: any): Observable<PageResponse<T>> {
+  getPage<T>(
+    path: string,
+    page: number,
+    size: number,
+    sort: string = 'lastName,asc',
+    extraParams?: any
+  ): Observable<PageResponse<T>> {
     let params = new HttpParams()
       .set('page', page)
       .set('size', size);
@@ -45,60 +50,97 @@ export class ApiService {
     return this.http.get<PageResponse<T>>(this.buildUrl(path), { params });
   }
 
-  getPageAdvanced<T>(path: string, params: any) {
+  getPageAdvanced<T>(path: string, params: any): Observable<PageResponse<T>> {
     return this.http.get<PageResponse<T>>(this.buildUrl(path), { params });
   }
 
-  /** GET ONE */
   getOne<T>(path: string, id: number): Observable<T> {
     return this.http.get<T>(this.buildUrl(`${path}/${id}`));
   }
 
-  /** GET LIST or Custom Endpoint */
   get<T>(path: string): Observable<T> {
     return this.http.get<T>(this.buildUrl(path));
   }
 
-  /** POST */
   post<T>(path: string, body: any): Observable<T> {
     return this.http.post<T>(this.buildUrl(path), body);
   }
 
-  /** PUT */
   put<T>(path: string, body: any): Observable<T> {
     return this.http.put<T>(this.buildUrl(path), body);
   }
 
-  /** PATCH */
   patch<T>(path: string, body: any): Observable<T> {
     return this.http.patch<T>(this.buildUrl(path), body);
   }
 
-  /** DELETE */
   delete<T>(path: string): Observable<T> {
     return this.http.delete<T>(this.buildUrl(path));
   }
 
-  downloadBlob(path: string) {
-  return this.http.get(`${this.baseUrl}/${path}`, {
+  downloadBlob(path: string): Observable<Blob> {
+  return this.http.get(this.buildUrl(path), {
     responseType: 'blob'
   });
 }
 
-submitCompletionReport(id: number, body: any) {
-  return this.post(`workorders/${id}/completion-report`, body);
+  // downloadBlob(path: string): Observable<Blob> {
+  //   return this.http.get(this.buildUrl(path), {
+  //     responseType: 'blob'
+  //   });
+  // }
+
+  // submitCompletionReport(
+  //   id: number,
+  //   body: WorkOrderCompletionReportRequest
+  // ): Observable<WorkOrderCompletionReportResponse> {
+  //   return this.post<WorkOrderCompletionReportResponse>(
+  //     `workorders/${id}/completion-report`,
+  //     body
+  //   );
+  // }
+
+  // getCompletionReport(id: number): Observable<WorkOrderCompletionReportResponse> {
+  //   return this.get<WorkOrderCompletionReportResponse>(
+  //     `workorders/${id}/completion-report`
+  //   );
+  // }
+
+  // startWorkOrder(id: number): Observable<any> {
+  //   return this.post(`workorders/${id}/start`, {});
+  // }
+
+  // returnWorkOrderToOpen(id: number): Observable<any> {
+  //   return this.post(`workorders/${id}/return-to-open`, {});
+  // }
+
+  submitCompletionReport(
+  id: number,
+  body: WorkOrderCompletionReportRequest
+): Observable<WorkOrderCompletionReportResponse> {
+  return this.post<WorkOrderCompletionReportResponse>(
+    `workorders/${id}/completion-report`,
+    body
+  );
 }
 
-getCompletionReport(id: number) {
-  return this.get(`workorders/${id}/completion-report`);
+getCompletionReport(id: number): Observable<WorkOrderCompletionReportResponse> {
+  return this.get<WorkOrderCompletionReportResponse>(
+    `workorders/${id}/completion-report`
+  );
 }
 
-startWorkOrder(id: number) {
+startWorkOrder(id: number): Observable<any> {
   return this.post(`workorders/${id}/start`, {});
 }
 
-returnWorkOrderToOpen(id: number) {
+returnWorkOrderToOpen(id: number): Observable<any> {
   return this.post(`workorders/${id}/return-to-open`, {});
 }
 
+reopenWorkOrder(id: number, body: { reason?: string }) {
+  return this.post(`workorders/${id}/reopen`, body);
+}
+
+  
 }

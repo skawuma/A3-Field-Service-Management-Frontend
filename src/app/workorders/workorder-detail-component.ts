@@ -373,6 +373,18 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
             <mat-icon>edit</mat-icon>
             Edit Work Order
           </button>
+
+              <button
+      *ngIf="canReopenWork"
+      mat-stroked-button
+      color="warn"
+      (click)="reopenWorkOrder()"
+      [disabled]="isBusy">
+      <mat-icon *ngIf="action !== 'reopen'">restart_alt</mat-icon>
+      <mat-spinner *ngIf="action === 'reopen'" diameter="18"></mat-spinner>
+      {{ action === 'reopen' ? 'Reopening...' : 'Reopen Work Order' }}
+    </button>
+
         </mat-card-content>
       </mat-card>
 
@@ -386,7 +398,11 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
       flex-direction: column;
       gap: 20px;
     }
-
+.admin-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
     .header {
       display: flex;
       align-items: center;
@@ -660,7 +676,7 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
   isTech = false;
 
   loading = false;
-  action: 'save' | 'start' | 'complete' | 'release' | null = null;
+  action: 'save' | 'start' | 'complete' | 'release' | 'reopen' | null = null;
 
   techForm = {
     description: ''
@@ -1083,6 +1099,41 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
       panelClass: ['snackbar-error']
     });
   }
+
+  get canReopenWork(): boolean {
+  return !this.isTech
+    && !!this.workorder
+    && this.workorder.status === 'COMPLETED';
+}
+
+reopenWorkOrder() {
+  if (!this.canReopenWork || this.isBusy) return;
+
+  const reason = window.prompt('Reason for reopening this work order?') || '';
+
+  this.action = 'reopen';
+
+  this.api.reopenWorkOrder(this.id, { reason }).subscribe({
+    next: () => {
+      this.showSuccess('Work order reopened successfully.');
+      this.action = null;
+      this.load();
+    },
+    error: (err) => {
+      console.error('Reopen failed', err);
+
+      if (err.status === 403) {
+        this.showError('You are not allowed to reopen this work order.');
+      } else if (err.status === 400 || err.status === 409) {
+        this.showError(err.error?.message || 'This work order cannot be reopened.');
+      } else {
+        this.showError('Failed to reopen work order.');
+      }
+
+      this.action = null;
+    }
+  });
+}
 
   ngOnDestroy() {
     if (this.signaturePreviewObjectUrl) {
