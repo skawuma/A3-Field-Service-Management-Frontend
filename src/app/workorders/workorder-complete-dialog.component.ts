@@ -79,7 +79,8 @@ import { MATERIAL_IMPORTS } from '../material-imports';
               mat-stroked-button
               color="warn"
               type="button"
-              (click)="clearSignature()">
+              (click)="clearSignature()"
+              [disabled]="submitting">
               Clear
             </button>
           </div>
@@ -110,7 +111,8 @@ import { MATERIAL_IMPORTS } from '../material-imports';
       <button
         mat-stroked-button
         type="button"
-        (click)="close()">
+        (click)="close()"
+        [disabled]="submitting">
         Cancel
       </button>
 
@@ -303,6 +305,8 @@ export class WorkorderCompleteDialogComponent implements AfterViewInit {
   }
 
   clearSignature() {
+    if (this.submitting) return;
+
     const canvas = this.canvasRef.nativeElement;
     this.ctx.clearRect(0, 0, canvas.width, canvas.height);
     this.fillCanvasBackground();
@@ -310,10 +314,13 @@ export class WorkorderCompleteDialogComponent implements AfterViewInit {
   }
 
   close() {
+    if (this.submitting) return;
     this.dialogRef.close();
   }
 
   submit() {
+    if (this.submitting) return;
+
     if (!this.form.faTag.trim()) {
       alert('FA Tag / Device is required.');
       return;

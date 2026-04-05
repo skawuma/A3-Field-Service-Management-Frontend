@@ -40,7 +40,8 @@ import { MATERIAL_IMPORTS } from '../material-imports';
       <button
         mat-stroked-button
         type="button"
-        (click)="close()">
+        (click)="close()"
+        [disabled]="submitting">
         Cancel
       </button>
 
@@ -105,10 +106,13 @@ export class WorkorderReturnToOpenDialogComponent {
   ) {}
 
   close() {
+    if (this.submitting) return;
     this.dialogRef.close();
   }
 
   confirm() {
+    if (this.submitting) return;
+
     this.submitting = true;
 
     this.dialogRef.close({

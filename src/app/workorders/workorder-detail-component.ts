@@ -347,7 +347,8 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
                   *ngIf="!isTech"
                   mat-icon-button
                   color="warn"
-                  (click)="delete(att)">
+                  (click)="delete(att)"
+                  [disabled]="isReadOnlyStatus">
                   <mat-icon>delete</mat-icon>
                 </button>
               </div>
@@ -895,6 +896,8 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
   }
 
   delete(att: WorkOrderAttachmentView) {
+    if (this.isReadOnlyStatus) return;
+
     this.api.delete(`workorders/${this.id}/attachments/${att.id}`).subscribe({
       next: () => {
         this.loadAttachments();
