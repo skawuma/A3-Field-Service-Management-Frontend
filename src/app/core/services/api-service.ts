@@ -84,36 +84,6 @@ export class ApiService {
   });
 }
 
-  // downloadBlob(path: string): Observable<Blob> {
-  //   return this.http.get(this.buildUrl(path), {
-  //     responseType: 'blob'
-  //   });
-  // }
-
-  // submitCompletionReport(
-  //   id: number,
-  //   body: WorkOrderCompletionReportRequest
-  // ): Observable<WorkOrderCompletionReportResponse> {
-  //   return this.post<WorkOrderCompletionReportResponse>(
-  //     `workorders/${id}/completion-report`,
-  //     body
-  //   );
-  // }
-
-  // getCompletionReport(id: number): Observable<WorkOrderCompletionReportResponse> {
-  //   return this.get<WorkOrderCompletionReportResponse>(
-  //     `workorders/${id}/completion-report`
-  //   );
-  // }
-
-  // startWorkOrder(id: number): Observable<any> {
-  //   return this.post(`workorders/${id}/start`, {});
-  // }
-
-  // returnWorkOrderToOpen(id: number): Observable<any> {
-  //   return this.post(`workorders/${id}/return-to-open`, {});
-  // }
-
   submitCompletionReport(
   id: number,
   body: WorkOrderCompletionReportRequest
@@ -134,8 +104,8 @@ startWorkOrder(id: number): Observable<any> {
   return this.post(`workorders/${id}/start`, {});
 }
 
-returnWorkOrderToOpen(id: number): Observable<any> {
-  return this.post(`workorders/${id}/return-to-open`, {});
+returnWorkOrderToOpen(id: number, body: { reason?: string }): Observable<any> {
+  return this.post(`workorders/${id}/return-to-open`, body);
 }
 
 reopenWorkOrder(id: number, body: { reason?: string }) {

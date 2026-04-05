@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { MATERIAL_IMPORTS } from '../material-imports';
 import { MatSnackBar } from '@angular/material/snack-bar';
-
+import { WorkorderReopenDialogComponent } from '../workorders/workorder-reopen-dialog.component';
 import { ApiService } from '../core/services/api-service';
 import { AuthService } from '../core/services/auth-service';
 import { MatDialog } from '@angular/material/dialog';
@@ -14,6 +14,7 @@ import { EditWorkOrderDialogComponent } from '../workorders/workorder-edit-dialo
 import { WorkorderCompleteDialogComponent } from '../workorders/workorder-complete-dialog.component';
 import { environment } from '../../environments/environment.development';
 import { WorkOrderCompletionReportResponse } from '../core/models/completion-report.model';
+import { WorkorderReturnToOpenDialogComponent } from '../workorders/workorder-return-to-open-dialog.component';
 
 interface WorkOrderAttachment {
   id: number;
@@ -368,7 +369,7 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
       <!-- ADMIN / DISPATCH FULL CONTROLS -->
       <mat-card class="section-card" *ngIf="!isTech">
         <mat-card-title>Admin / Dispatch Controls</mat-card-title>
-        <mat-card-content>
+        <mat-card-content class="admin-actions">
           <button mat-raised-button color="primary" (click)="openEditDialog()">
             <mat-icon>edit</mat-icon>
             Edit Work Order
@@ -961,31 +962,34 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
   returnToOpen() {
     if (!this.canReturnToOpen || this.isBusy) return;
 
-    const confirmed = window.confirm(
-      'Return this work order to Open and remove it from your assignments so dispatch can reassign it?'
-    );
+    const dialogRef = this.dialog.open(WorkorderReturnToOpenDialogComponent, {
+      width: '620px',
+      data: { workorder: this.workorder }
+    });
 
-    if (!confirmed) return;
+    dialogRef.afterClosed().subscribe(result => {
+      if (!result || this.isBusy) return;
 
-    this.action = 'release';
+      this.action = 'release';
 
-    this.api.returnWorkOrderToOpen(this.id).subscribe({
-      next: () => {
-        this.showSuccess('Work order returned to Open for reassignment.');
-        this.action = null;
-        this.router.navigate(['/workorders']);
-      },
-      error: (err) => {
-        if (err.status === 403) {
-          this.showError('You are not allowed to release this work order.');
-        } else if (err.status === 409 || err.status === 400) {
-          this.showError(err.error?.message || 'This work order cannot be returned to Open right now.');
-        } else {
-          this.showError('Failed to return work order to Open.');
+      this.api.returnWorkOrderToOpen(this.id, { reason: result.reason }).subscribe({
+        next: () => {
+          this.showSuccess('Work order returned to Open for reassignment.');
+          this.action = null;
+          this.router.navigate(['/workorders']);
+        },
+        error: (err) => {
+          if (err.status === 403) {
+            this.showError('You are not allowed to release this work order.');
+          } else if (err.status === 409 || err.status === 400) {
+            this.showError(err.error?.message || 'This work order cannot be returned to Open right now.');
+          } else {
+            this.showError('Failed to return work order to Open.');
+          }
+
+          this.action = null;
         }
-
-        this.action = null;
-      }
+      });
     });
   }
 
@@ -1104,36 +1108,43 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
   return !this.isTech
     && !!this.workorder
     && this.workorder.status === 'COMPLETED';
-}
+  }
 
-reopenWorkOrder() {
-  if (!this.canReopenWork || this.isBusy) return;
+  reopenWorkOrder() {
+    if (!this.canReopenWork || this.isBusy) return;
 
-  const reason = window.prompt('Reason for reopening this work order?') || '';
+    const dialogRef = this.dialog.open(WorkorderReopenDialogComponent, {
+      width: '620px',
+      data: { workorder: this.workorder }
+    });
 
-  this.action = 'reopen';
+    dialogRef.afterClosed().subscribe(result => {
+      if (!result || this.isBusy) return;
 
-  this.api.reopenWorkOrder(this.id, { reason }).subscribe({
-    next: () => {
-      this.showSuccess('Work order reopened successfully.');
-      this.action = null;
-      this.load();
-    },
-    error: (err) => {
-      console.error('Reopen failed', err);
+      this.action = 'reopen';
 
-      if (err.status === 403) {
-        this.showError('You are not allowed to reopen this work order.');
-      } else if (err.status === 400 || err.status === 409) {
-        this.showError(err.error?.message || 'This work order cannot be reopened.');
-      } else {
-        this.showError('Failed to reopen work order.');
-      }
+      this.api.reopenWorkOrder(this.id, { reason: result.reason }).subscribe({
+        next: () => {
+          this.showSuccess('Work order reopened successfully.');
+          this.action = null;
+          this.load();
+        },
+        error: (err) => {
+          console.error('Reopen failed', err);
 
-      this.action = null;
-    }
-  });
-}
+          if (err.status === 403) {
+            this.showError('You are not allowed to reopen this work order.');
+          } else if (err.status === 400 || err.status === 409) {
+            this.showError(err.error?.message || 'This work order cannot be reopened.');
+          } else {
+            this.showError('Failed to reopen work order.');
+          }
+
+          this.action = null;
+        }
+      });
+    });
+  }
 
   ngOnDestroy() {
     if (this.signaturePreviewObjectUrl) {
