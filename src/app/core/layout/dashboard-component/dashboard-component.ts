@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ChartConfiguration, ChartOptions } from 'chart.js';
 import { BaseChartDirective } from 'ng2-charts';
+import { Router } from '@angular/router';
 import { MATERIAL_IMPORTS } from '../../../material-imports';
 import { ApiService } from '../../services/api-service';
 import { NotificationService } from '../../services/notification.service';
@@ -13,6 +14,8 @@ interface DashboardSummary {
   inProgressWorkOrders: number;
   unassignedWorkOrders: number;
   scheduledToday: number;
+  dueTodayWorkOrders?: number;
+  overdueWorkOrders?: number;
   completedToday?: number;
   highPriorityOpen?: number;
 }
@@ -143,6 +146,22 @@ interface DashboardAnalytics {
             </div>
             <div class="value">{{ summary?.scheduledToday ?? 0 }}</div>
             <div class="label">Scheduled Today</div>
+          </mat-card>
+
+          <mat-card class="stat-card sla-due mat-elevation-z3">
+            <div class="card-top">
+              <mat-icon class="icon">today</mat-icon>
+            </div>
+            <div class="value">{{ summary?.dueTodayWorkOrders ?? 0 }}</div>
+            <div class="label">Due Today</div>
+          </mat-card>
+
+          <mat-card class="stat-card overdue mat-elevation-z3">
+            <div class="card-top">
+              <mat-icon class="icon">schedule</mat-icon>
+            </div>
+            <div class="value">{{ summary?.overdueWorkOrders ?? 0 }}</div>
+            <div class="label">Overdue</div>
           </mat-card>
 
           <mat-card class="stat-card completed mat-elevation-z3">
@@ -293,12 +312,45 @@ interface DashboardAnalytics {
                 <strong>{{ summary?.scheduledToday ?? 0 }}</strong>
               </div>
               <div class="snapshot-item">
+                <span>Due Today</span>
+                <strong>{{ summary?.dueTodayWorkOrders ?? 0 }}</strong>
+              </div>
+              <div class="snapshot-item">
+                <span>Overdue</span>
+                <strong>{{ summary?.overdueWorkOrders ?? 0 }}</strong>
+              </div>
+              <div class="snapshot-item">
                 <span>Completed Today</span>
                 <strong>{{ summary?.completedToday ?? 0 }}</strong>
               </div>
               <div class="snapshot-item">
                 <span>High Priority Open</span>
                 <strong>{{ summary?.highPriorityOpen ?? 0 }}</strong>
+              </div>
+            </div>
+          </mat-card>
+
+          <mat-card class="panel-card">
+            <div class="panel-header">
+              <h3>SLA Watch</h3>
+            </div>
+
+            <div class="snapshot-list">
+              <div class="snapshot-item">
+                <span>Overdue Work Orders</span>
+                <strong>{{ summary?.overdueWorkOrders ?? 0 }}</strong>
+              </div>
+              <div class="snapshot-item">
+                <span>Due Today Work Orders</span>
+                <strong>{{ summary?.dueTodayWorkOrders ?? 0 }}</strong>
+              </div>
+              <div class="snapshot-item">
+                <span>High Priority Open</span>
+                <strong>{{ summary?.highPriorityOpen ?? 0 }}</strong>
+              </div>
+              <div class="snapshot-item">
+                <span>Role-Aware SLA Views</span>
+                <strong>Next</strong>
               </div>
             </div>
           </mat-card>
@@ -344,7 +396,17 @@ interface DashboardAnalytics {
                 </div>
 
                 <div class="activity-content">
-                  <div class="activity-title">{{ item.title }}</div>
+                  <button
+                    *ngIf="item.workOrderId; else plainActivityTitle"
+                    type="button"
+                    class="activity-link"
+                    (click)="openWorkOrder(item.workOrderId)"
+                  >
+                    {{ item.title }}
+                  </button>
+                  <ng-template #plainActivityTitle>
+                    <div class="activity-title">{{ item.title }}</div>
+                  </ng-template>
                   <div class="activity-description">{{ item.description }}</div>
                   <div class="activity-meta">
                     {{ item.actor || 'SYSTEM' }} • {{ item.createdAt | date:'medium' }}
@@ -597,6 +659,22 @@ interface DashboardAnalytics {
       color: #111827;
     }
 
+    .activity-link {
+      border: none;
+      background: none;
+      padding: 0;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      color: #1d4ed8;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .activity-link:hover {
+      text-decoration: underline;
+    }
+
     .activity-description {
       font-size: 14px;
       color: #374151;
@@ -613,9 +691,11 @@ interface DashboardAnalytics {
     .warn { background: linear-gradient(135deg, #f44336, #ff7043); }
     .in-progress { background: linear-gradient(135deg, #009688, #26a69a); }
     .unassigned { background: linear-gradient(135deg, #607d8b, #78909c); }
-	    .today { background: linear-gradient(135deg, #8bc34a, #9ccc65); }
-	    .completed { background: linear-gradient(135deg, #2e7d32, #43a047); }
-	    .urgent { background: linear-gradient(135deg, #fb8c00, #ffb300); }
+    .today { background: linear-gradient(135deg, #8bc34a, #9ccc65); }
+    .sla-due { background: linear-gradient(135deg, #0284c7, #38bdf8); }
+    .overdue { background: linear-gradient(135deg, #c2410c, #f97316); }
+    .completed { background: linear-gradient(135deg, #2e7d32, #43a047); }
+    .urgent { background: linear-gradient(135deg, #fb8c00, #ffb300); }
 
     @media (max-width: 768px) {
       .title {
@@ -750,7 +830,8 @@ export class DashboardComponent implements OnInit {
 
   constructor(
     private api: ApiService,
-    private notify: NotificationService
+    private notify: NotificationService,
+    private router: Router
   ) {}
 
   ngOnInit(): void {
@@ -839,6 +920,14 @@ export class DashboardComponent implements OnInit {
 
   hasChartData(data: readonly number[]): boolean {
     return data.some((value) => value > 0);
+  }
+
+  openWorkOrder(workOrderId: number | null): void {
+    if (!workOrderId) {
+      return;
+    }
+
+    this.router.navigate(['/workorders', workOrderId]);
   }
 
   private applyAnalyticsCharts(analytics: DashboardAnalytics): void {
