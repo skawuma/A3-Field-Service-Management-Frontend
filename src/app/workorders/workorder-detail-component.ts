@@ -735,10 +735,10 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
         this.workorder = res;
         this.techForm.description = res.description || '';
 
-        if (!this.isTech && res.assignedTechId) {
-          this.loadTechnician(res.assignedTechId);
-        } else if (this.isTech) {
+        if (this.isTech) {
           this.technicianName = 'You';
+        } else {
+          this.technicianName = res.assignedTechnicianName || (res.assignedTechId ? `Tech #${res.assignedTechId}` : '');
         }
 
         this.loadAttachments();
@@ -751,17 +751,6 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
       },
       complete: () => {
         this.loading = false;
-      }
-    });
-  }
-
-  loadTechnician(id: number) {
-    this.api.get(`technicians/${id}`).subscribe({
-      next: (tech: any) => {
-        this.technicianName = tech.firstName + ' ' + tech.lastName;
-      },
-      error: () => {
-        this.technicianName = 'Unknown';
       }
     });
   }

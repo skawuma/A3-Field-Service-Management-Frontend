@@ -24,6 +24,7 @@ interface WorkOrder {
   description: string;
   status: string;
   assignedTechId: number | null;
+  assignedTechnicianName?: string | null;
   scheduledDate: string | null;
   priority: string | null;
 }
