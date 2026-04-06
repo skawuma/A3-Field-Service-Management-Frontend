@@ -1,5 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ChartConfiguration, ChartOptions } from 'chart.js';
+import { BaseChartDirective } from 'ng2-charts';
 import { MATERIAL_IMPORTS } from '../../../material-imports';
 import { ApiService } from '../../services/api-service';
 import { NotificationService } from '../../services/notification.service';
@@ -24,10 +26,28 @@ interface DashboardRecentActivityItem {
   createdAt: string;
 }
 
+interface DashboardChartDatum {
+  key: string;
+  label: string;
+  total: number;
+}
+
+interface DashboardTrendPoint {
+  date: string;
+  label: string;
+  total: number;
+}
+
+interface DashboardAnalytics {
+  workOrdersByStatus: DashboardChartDatum[];
+  workOrdersByPriority: DashboardChartDatum[];
+  completionTrend: DashboardTrendPoint[];
+}
+
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, ...MATERIAL_IMPORTS],
+  imports: [CommonModule, BaseChartDirective, ...MATERIAL_IMPORTS],
   template: `
     <div class="dashboard-page">
 
@@ -45,7 +65,7 @@ interface DashboardRecentActivityItem {
           mat-raised-button
           color="primary"
           (click)="refreshDashboard()"
-          [disabled]="loading"
+          [disabled]="isRefreshing"
         >
           <mat-icon>refresh</mat-icon>
           Refresh
@@ -142,7 +162,109 @@ interface DashboardRecentActivityItem {
           </mat-card>
         </div>
 
-        <!-- SECOND ROW / ANALYTICS PLACEHOLDERS -->
+        <div class="analytics-grid">
+          <mat-card class="panel-card chart-card">
+            <div class="panel-header">
+              <div>
+                <h3>Work Orders by Status</h3>
+                <p class="panel-subtitle">Current status distribution across all jobs</p>
+              </div>
+            </div>
+
+            <div *ngIf="analyticsLoading" class="panel-loading">
+              <mat-progress-spinner diameter="32" mode="indeterminate"></mat-progress-spinner>
+            </div>
+
+            <div *ngIf="!analyticsLoading && analyticsLoadError" class="empty-state">
+              Analytics are temporarily unavailable.
+            </div>
+
+            <div
+              *ngIf="!analyticsLoading && !analyticsLoadError && hasChartData(statusChartData.datasets[0].data)"
+              class="chart-wrapper"
+            >
+              <canvas
+                baseChart
+                [type]="statusChartType"
+                [data]="statusChartData"
+                [options]="statusChartOptions"
+              ></canvas>
+            </div>
+
+            <div
+              *ngIf="!analyticsLoading && !analyticsLoadError && !hasChartData(statusChartData.datasets[0].data)"
+              class="empty-state"
+            >
+              No status analytics available yet.
+            </div>
+          </mat-card>
+
+          <mat-card class="panel-card chart-card">
+            <div class="panel-header">
+              <div>
+                <h3>Work Orders by Priority</h3>
+                <p class="panel-subtitle">Current workload mix by priority level</p>
+              </div>
+            </div>
+
+            <div *ngIf="analyticsLoading" class="panel-loading">
+              <mat-progress-spinner diameter="32" mode="indeterminate"></mat-progress-spinner>
+            </div>
+
+            <div *ngIf="!analyticsLoading && analyticsLoadError" class="empty-state">
+              Analytics are temporarily unavailable.
+            </div>
+
+            <div
+              *ngIf="!analyticsLoading && !analyticsLoadError && hasChartData(priorityChartData.datasets[0].data)"
+              class="chart-wrapper"
+            >
+              <canvas
+                baseChart
+                [type]="priorityChartType"
+                [data]="priorityChartData"
+                [options]="priorityChartOptions"
+              ></canvas>
+            </div>
+
+            <div
+              *ngIf="!analyticsLoading && !analyticsLoadError && !hasChartData(priorityChartData.datasets[0].data)"
+              class="empty-state"
+            >
+              No priority analytics available yet.
+            </div>
+          </mat-card>
+
+          <mat-card class="panel-card chart-card">
+            <div class="panel-header">
+              <div>
+                <h3>Completion Trend</h3>
+                <p class="panel-subtitle">Completed work orders over the last 7 days</p>
+              </div>
+            </div>
+
+            <div *ngIf="analyticsLoading" class="panel-loading">
+              <mat-progress-spinner diameter="32" mode="indeterminate"></mat-progress-spinner>
+            </div>
+
+            <div *ngIf="!analyticsLoading && analyticsLoadError" class="empty-state">
+              Analytics are temporarily unavailable.
+            </div>
+
+            <div
+              *ngIf="!analyticsLoading && !analyticsLoadError"
+              class="chart-wrapper"
+            >
+              <canvas
+                baseChart
+                [type]="completionTrendChartType"
+                [data]="completionTrendChartData"
+                [options]="completionTrendChartOptions"
+              ></canvas>
+            </div>
+          </mat-card>
+        </div>
+
         <div class="details-grid">
           <mat-card class="panel-card">
             <div class="panel-header">
@@ -197,7 +319,7 @@ interface DashboardRecentActivityItem {
               </div>
               <div class="snapshot-item">
                 <span>Charts & Analytics</span>
-                <strong>Next</strong>
+                <strong>Live</strong>
               </div>
             </div>
           </mat-card>
@@ -332,9 +454,19 @@ interface DashboardRecentActivityItem {
       grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
     }
 
+    .analytics-grid {
+      display: grid;
+      gap: 20px;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    }
+
     .panel-card {
       border-radius: 16px;
-      padding: 8px;
+      padding: 16px;
+    }
+
+    .chart-card {
+      min-height: 380px;
     }
 
     .panel-header h3 {
@@ -342,6 +474,12 @@ interface DashboardRecentActivityItem {
       font-size: 18px;
       font-weight: 600;
       color: #111827;
+    }
+
+    .panel-subtitle {
+      margin: 4px 0 0;
+      font-size: 13px;
+      color: #6b7280;
     }
 
     .snapshot-list {
@@ -404,13 +542,24 @@ interface DashboardRecentActivityItem {
     .panel-loading {
       display: flex;
       justify-content: center;
-      padding: 24px 0;
+      align-items: center;
+      min-height: 280px;
     }
 
     .empty-state {
-      padding: 24px 0;
+      min-height: 280px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
       color: #6b7280;
       font-size: 14px;
+    }
+
+    .chart-wrapper {
+      position: relative;
+      height: 280px;
+      margin-top: 16px;
     }
 
     .activity-list {
@@ -478,6 +627,7 @@ interface DashboardRecentActivityItem {
       }
 
       .grid-container,
+      .analytics-grid,
       .details-grid {
         grid-template-columns: 1fr;
       }
@@ -486,11 +636,117 @@ interface DashboardRecentActivityItem {
 })
 export class DashboardComponent implements OnInit {
   summary: DashboardSummary | null = null;
+  analytics: DashboardAnalytics | null = null;
   loading = true;
   loadError = false;
   lastUpdated: Date | null = null;
   recentActivity: DashboardRecentActivityItem[] = [];
   activityLoading = false;
+  analyticsLoading = false;
+  analyticsLoadError = false;
+
+  readonly statusChartType: 'pie' = 'pie';
+  readonly priorityChartType: 'bar' = 'bar';
+  readonly completionTrendChartType: 'line' = 'line';
+
+  
+
+  readonly statusChartOptions: ChartOptions<'pie'> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom'
+      }
+    }
+  };
+
+  readonly priorityChartOptions: ChartOptions<'bar'> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: {
+          precision: 0
+        }
+      },
+      x: {
+        grid: {
+          display: false
+        }
+      }
+    }
+  };
+
+  readonly completionTrendChartOptions: ChartOptions<'line'> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: {
+          precision: 0
+        }
+      },
+      x: {
+        grid: {
+          display: false
+        }
+      }
+    }
+  };
+
+  statusChartData: ChartConfiguration<'pie', number[], string>['data'] = {
+    labels: [],
+    datasets: [
+      {
+        data: [],
+        backgroundColor: ['#ef4444', '#f59e0b', '#0ea5e9', '#22c55e', '#6b7280'],
+        borderColor: '#ffffff',
+        borderWidth: 2
+      }
+    ]
+  };
+
+  priorityChartData: ChartConfiguration<'bar', number[], string>['data'] = {
+    labels: [],
+    datasets: [
+      {
+        data: [],
+        label: 'Work Orders',
+        backgroundColor: ['#93c5fd', '#60a5fa', '#f59e0b', '#ef4444', '#cbd5e1'],
+        borderRadius: 8,
+        maxBarThickness: 48
+      }
+    ]
+  };
+
+  completionTrendChartData: ChartConfiguration<'line', number[], string>['data'] = {
+    labels: [],
+    datasets: [
+      {
+        data: [],
+        label: 'Completed',
+        tension: 0.3,
+        borderColor: '#16a34a',
+        backgroundColor: 'rgba(22, 163, 74, 0.18)',
+        fill: true,
+        pointBackgroundColor: '#16a34a',
+        pointRadius: 4
+      }
+    ]
+  };
 
   constructor(
     private api: ApiService,
@@ -504,6 +760,7 @@ export class DashboardComponent implements OnInit {
   refreshDashboard(): void {
     this.loadSummary();
     this.loadRecentActivity();
+    this.loadAnalytics();
   }
 
   loadRecentActivity(): void {
@@ -517,6 +774,24 @@ export class DashboardComponent implements OnInit {
       error: () => {
         this.activityLoading = false;
         this.notify.error('Failed to load recent activity');
+      }
+    });
+  }
+
+  loadAnalytics(): void {
+    this.analyticsLoading = true;
+    this.analyticsLoadError = false;
+
+    this.api.get<DashboardAnalytics>('dashboard/analytics').subscribe({
+      next: (res) => {
+        this.analytics = res;
+        this.applyAnalyticsCharts(res);
+        this.analyticsLoading = false;
+      },
+      error: () => {
+        this.analyticsLoading = false;
+        this.analyticsLoadError = true;
+        this.notify.error('Failed to load dashboard analytics');
       }
     });
   }
@@ -557,4 +832,54 @@ export class DashboardComponent implements OnInit {
         return 'history';
     }
   }
+
+  get isRefreshing(): boolean {
+    return this.loading || this.activityLoading || this.analyticsLoading;
+  }
+
+  hasChartData(data: readonly number[]): boolean {
+    return data.some((value) => value > 0);
+  }
+
+  private applyAnalyticsCharts(analytics: DashboardAnalytics): void {
+    this.statusChartData = {
+      
+      labels: analytics.workOrdersByStatus.map((item) => item.label),
+      datasets: [
+        {
+          ...this.statusChartData.datasets[0],
+          data: analytics.workOrdersByStatus.map((item) => item.total)
+        }
+      ]
+    };
+
+    this.priorityChartData = {
+      labels: analytics.workOrdersByPriority.map((item) => item.label),
+      datasets: [
+        {
+          ...this.priorityChartData.datasets[0],
+          data: analytics.workOrdersByPriority.map((item) => item.total)
+        }
+      ]
+    };
+
+    this.completionTrendChartData = {
+      labels: analytics.completionTrend.map((item) => item.label),
+      datasets: [
+        {
+          ...this.completionTrendChartData.datasets[0],
+          data: analytics.completionTrend.map((item) => item.total)
+        }
+      ]
+    };
+  }
+
+  getStatusColor(key: string): string {
+  switch (key) {
+    case 'OPEN': return '#ef4444';
+    case 'IN_PROGRESS': return '#0ea5e9';
+    case 'COMPLETED': return '#22c55e';
+    default: return '#6b7280';
+  }
+}
 }
