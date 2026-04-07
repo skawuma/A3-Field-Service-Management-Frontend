@@ -46,7 +46,27 @@ interface DashboardAnalytics {
   workOrdersByPriority: DashboardChartDatum[];
   completionTrend: DashboardTrendPoint[];
 }
+interface DashboardSlaWorkOrderItem {
+  workOrderId: number | null;
+  workOrderRef: string;
+  title: string;
+  customerName: string;
+  scheduledDate: string;
+  status: string;
+  priority: string;
+  assignedTechId: number | null;
+  assignedTechName: string | null;
+  daysLate: number;
+}
 
+interface DashboardSlaSummary {
+  overdueCount: number;
+  dueTodayCount: number;
+  overdueItems: DashboardSlaWorkOrderItem[];
+  dueTodayItems: DashboardSlaWorkOrderItem[];
+
+  
+}
 @Component({
   selector: 'app-dashboard',
   standalone: true,
@@ -180,6 +200,96 @@ interface DashboardAnalytics {
             <div class="label">High Priority Open</div>
           </mat-card>
         </div>
+
+        <div class="details-grid">
+  <mat-card class="panel-card">
+    <div class="panel-header">
+      <div>
+        <h3>SLA Tracking</h3>
+        <p class="panel-subtitle">Overdue and due-today work orders requiring attention</p>
+      </div>
+    </div>
+
+    <div *ngIf="slaLoading" class="panel-loading">
+      <mat-progress-spinner diameter="32" mode="indeterminate"></mat-progress-spinner>
+    </div>
+
+    <div *ngIf="!slaLoading && slaLoadError" class="empty-state">
+      SLA tracking is temporarily unavailable.
+    </div>
+
+    <div *ngIf="!slaLoading && !slaLoadError && slaSummary" class="sla-section">
+      <div class="sla-summary-row">
+        <div class="sla-badge overdue-badge">
+          Overdue: {{ slaSummary.overdueCount }}
+        </div>
+        <div class="sla-badge due-badge">
+          Due Today: {{ slaSummary.dueTodayCount }}
+        </div>
+      </div>
+
+      <div class="sla-columns">
+        <div class="sla-column">
+          <h4>Overdue Items</h4>
+
+          <div *ngIf="slaSummary.overdueItems.length === 0" class="mini-empty-state">
+            No overdue work orders.
+          </div>
+
+          <div class="sla-item" *ngFor="let item of slaSummary.overdueItems">
+            <button
+              type="button"
+              class="sla-link-button"
+              (click)="openWorkOrder(item.workOrderId)"
+            >
+              {{ item.workOrderRef }} - {{ item.title || 'Untitled work order' }}
+            </button>
+
+            <div class="sla-item-meta">
+              {{ item.customerName || 'No customer' }} •
+              {{ item.scheduledDate | date:'mediumDate' }} •
+              {{ item.assignedTechName || 'Unassigned' }}
+            </div>
+
+            <div class="sla-item-submeta">
+              {{ item.daysLate }} day{{ item.daysLate === 1 ? '' : 's' }} late •
+              {{ item.status }} •
+              {{ item.priority || 'Unspecified' }}
+            </div>
+          </div>
+        </div>
+
+        <div class="sla-column">
+          <h4>Due Today</h4>
+
+          <div *ngIf="slaSummary.dueTodayItems.length === 0" class="mini-empty-state">
+            No work orders due today.
+          </div>
+
+          <div class="sla-item" *ngFor="let item of slaSummary.dueTodayItems">
+            <button
+              type="button"
+              class="sla-link-button"
+              (click)="openWorkOrder(item.workOrderId)"
+            >
+              {{ item.workOrderRef }} - {{ item.title || 'Untitled work order' }}
+            </button>
+
+            <div class="sla-item-meta">
+              {{ item.customerName || 'No customer' }} •
+              {{ item.scheduledDate | date:'mediumDate' }} •
+              {{ item.assignedTechName || 'Unassigned' }}
+            </div>
+
+            <div class="sla-item-submeta">
+              {{ item.status }} • {{ item.priority || 'Unspecified' }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </mat-card>
+</div>
 
         <div class="analytics-grid">
           <mat-card class="panel-card chart-card">
@@ -658,7 +768,91 @@ interface DashboardAnalytics {
       font-weight: 600;
       color: #111827;
     }
+.sla-section {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
 
+.sla-summary-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.sla-badge {
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.overdue-badge {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.due-badge {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.sla-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.sla-column h4 {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.sla-item {
+  padding: 12px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.sla-item:last-child {
+  border-bottom: none;
+}
+
+.sla-link-button {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1d4ed8;
+  cursor: pointer;
+  text-align: left;
+}
+
+.sla-link-button:hover {
+  text-decoration: underline;
+}
+
+.sla-item-meta {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #4b5563;
+}
+
+.sla-item-submeta {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.mini-empty-state {
+  color: #6b7280;
+  font-size: 14px;
+  padding: 8px 0;
+}
     .activity-link {
       border: none;
       background: none;
@@ -729,7 +923,9 @@ export class DashboardComponent implements OnInit {
   readonly priorityChartType: 'bar' = 'bar';
   readonly completionTrendChartType: 'line' = 'line';
 
-  
+  slaSummary: DashboardSlaSummary | null = null;
+slaLoading = false;
+slaLoadError = false;
 
   readonly statusChartOptions: ChartOptions<'pie'> = {
     responsive: true,
@@ -839,9 +1035,10 @@ export class DashboardComponent implements OnInit {
   }
 
   refreshDashboard(): void {
-    this.loadSummary();
-    this.loadRecentActivity();
-    this.loadAnalytics();
+     this.loadSummary();
+  this.loadRecentActivity();
+  this.loadAnalytics();
+  this.loadSlaSummary();
   }
 
   loadRecentActivity(): void {
@@ -858,6 +1055,23 @@ export class DashboardComponent implements OnInit {
       }
     });
   }
+
+  loadSlaSummary(): void {
+  this.slaLoading = true;
+  this.slaLoadError = false;
+
+  this.api.get<DashboardSlaSummary>('dashboard/sla').subscribe({
+    next: (res) => {
+      this.slaSummary = res;
+      this.slaLoading = false;
+    },
+    error: () => {
+      this.slaLoading = false;
+      this.slaLoadError = true;
+      this.notify.error('Failed to load SLA tracking data');
+    }
+  });
+}
 
   loadAnalytics(): void {
     this.analyticsLoading = true;
@@ -876,6 +1090,8 @@ export class DashboardComponent implements OnInit {
       }
     });
   }
+
+  
 
   loadSummary(): void {
     this.loading = true;
@@ -914,9 +1130,9 @@ export class DashboardComponent implements OnInit {
     }
   }
 
-  get isRefreshing(): boolean {
-    return this.loading || this.activityLoading || this.analyticsLoading;
-  }
+get isRefreshing(): boolean {
+  return this.loading || this.activityLoading || this.analyticsLoading || this.slaLoading;
+}
 
   hasChartData(data: readonly number[]): boolean {
     return data.some((value) => value > 0);
