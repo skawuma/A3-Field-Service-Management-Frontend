@@ -47,6 +47,7 @@ interface DashboardAnalytics {
   workOrdersByPriority: DashboardChartDatum[];
   completionTrend: DashboardTrendPoint[];
 }
+
 interface DashboardSlaWorkOrderItem {
   workOrderId: number | null;
   workOrderRef: string;
@@ -76,6 +77,7 @@ interface DashboardTechnicianWorkloadItem {
   dueTodayAssignedWorkOrders: number;
   overdueAssignedWorkOrders: number;
 }
+
 @Component({
   selector: 'app-dashboard',
   standalone: true,
@@ -83,7 +85,6 @@ interface DashboardTechnicianWorkloadItem {
   template: `
     <div class="dashboard-page">
 
-      <!-- HEADER -->
       <div class="header-row">
         <div class="header-text">
           <h2 class="title">Dashboard</h2>
@@ -104,12 +105,10 @@ interface DashboardTechnicianWorkloadItem {
         </button>
       </div>
 
-      <!-- LOADING -->
       <div *ngIf="loading" class="loading-container">
         <mat-progress-spinner diameter="48" mode="indeterminate"></mat-progress-spinner>
       </div>
 
-      <!-- ERROR STATE -->
       <mat-card *ngIf="!loading && loadError" class="state-card error-card">
         <div class="state-content">
           <mat-icon class="state-icon">error</mat-icon>
@@ -124,10 +123,8 @@ interface DashboardTechnicianWorkloadItem {
         </button>
       </mat-card>
 
-      <!-- DASHBOARD CONTENT -->
       <ng-container *ngIf="!loading && !loadError">
 
-        <!-- KPI CARDS -->
         <div *ngIf="!isTechDashboard" class="grid-container">
           <mat-card class="stat-card primary mat-elevation-z3">
             <div class="card-top">
@@ -229,94 +226,94 @@ interface DashboardTechnicianWorkloadItem {
         </div>
 
         <div class="details-grid">
-  <mat-card class="panel-card">
-    <div class="panel-header">
-      <div>
-        <h3>{{ slaPanelTitle }}</h3>
-        <p class="panel-subtitle">{{ slaPanelSubtitle }}</p>
-      </div>
-    </div>
-
-    <div *ngIf="slaLoading" class="panel-loading">
-      <mat-progress-spinner diameter="32" mode="indeterminate"></mat-progress-spinner>
-    </div>
-
-    <div *ngIf="!slaLoading && slaLoadError" class="empty-state">
-      SLA tracking is temporarily unavailable.
-    </div>
-
-    <div *ngIf="!slaLoading && !slaLoadError && slaSummary" class="sla-section">
-      <div class="sla-summary-row">
-        <div class="sla-badge overdue-badge">
-          {{ overdueBadgeLabel }}: {{ slaSummary.overdueCount }}
-        </div>
-        <div class="sla-badge due-badge">
-          {{ dueTodayBadgeLabel }}: {{ slaSummary.dueTodayCount }}
-        </div>
-      </div>
-
-      <div class="sla-columns">
-        <div class="sla-column">
-          <h4>{{ overdueListTitle }}</h4>
-
-          <div *ngIf="slaSummary.overdueItems.length === 0" class="mini-empty-state">
-            {{ overdueEmptyState }}
-          </div>
-
-          <div class="sla-item" *ngFor="let item of slaSummary.overdueItems">
-            <button
-              type="button"
-              class="sla-link-button"
-              (click)="openWorkOrder(item.workOrderId)"
-            >
-              {{ item.workOrderRef }} - {{ item.title || 'Untitled work order' }}
-            </button>
-
-            <div class="sla-item-meta">
-              {{ item.customerName || 'No customer' }} •
-              {{ item.scheduledDate | date:'mediumDate' }} •
-              {{ item.assignedTechName || 'Unassigned' }}
+          <mat-card class="panel-card">
+            <div class="panel-header">
+              <div>
+                <h3>{{ slaPanelTitle }}</h3>
+                <p class="panel-subtitle">{{ slaPanelSubtitle }}</p>
+              </div>
             </div>
 
-            <div class="sla-item-submeta">
-              {{ item.daysLate }} day{{ item.daysLate === 1 ? '' : 's' }} late •
-              {{ item.status }} •
-              {{ item.priority || 'Unspecified' }}
+            <div *ngIf="slaLoading" class="panel-loading">
+              <mat-progress-spinner diameter="32" mode="indeterminate"></mat-progress-spinner>
             </div>
-          </div>
+
+            <div *ngIf="!slaLoading && slaLoadError" class="empty-state">
+              SLA tracking is temporarily unavailable.
+            </div>
+
+            <div *ngIf="!slaLoading && !slaLoadError && slaSummary" class="sla-section">
+              <div class="sla-summary-row">
+                <div class="sla-badge overdue-badge">
+                  {{ overdueBadgeLabel }}: {{ slaSummary.overdueCount }}
+                </div>
+                <div class="sla-badge due-badge">
+                  {{ dueTodayBadgeLabel }}: {{ slaSummary.dueTodayCount }}
+                </div>
+              </div>
+
+              <div class="sla-columns">
+                <div class="sla-column">
+                  <h4>{{ overdueListTitle }}</h4>
+
+                  <div *ngIf="slaSummary.overdueItems.length === 0" class="mini-empty-state">
+                    {{ overdueEmptyState }}
+                  </div>
+
+                  <div class="sla-item" *ngFor="let item of slaSummary.overdueItems">
+                    <button
+                      type="button"
+                      class="sla-link-button"
+                      (click)="openWorkOrder(item.workOrderId)"
+                    >
+                      {{ item.workOrderRef }} - {{ item.title || 'Untitled work order' }}
+                    </button>
+
+                    <div class="sla-item-meta">
+                      {{ item.customerName || 'No customer' }} •
+                      {{ item.scheduledDate | date:'mediumDate' }} •
+                      {{ item.assignedTechName || 'Unassigned' }}
+                    </div>
+
+                    <div class="sla-item-submeta">
+                      {{ item.daysLate }} day{{ item.daysLate === 1 ? '' : 's' }} late •
+                      {{ item.status }} •
+                      {{ item.priority || 'Unspecified' }}
+                    </div>
+                  </div>
+                </div>
+
+                <div class="sla-column">
+                  <h4>{{ dueTodayListTitle }}</h4>
+
+                  <div *ngIf="slaSummary.dueTodayItems.length === 0" class="mini-empty-state">
+                    {{ dueTodayEmptyState }}
+                  </div>
+
+                  <div class="sla-item" *ngFor="let item of slaSummary.dueTodayItems">
+                    <button
+                      type="button"
+                      class="sla-link-button"
+                      (click)="openWorkOrder(item.workOrderId)"
+                    >
+                      {{ item.workOrderRef }} - {{ item.title || 'Untitled work order' }}
+                    </button>
+
+                    <div class="sla-item-meta">
+                      {{ item.customerName || 'No customer' }} •
+                      {{ item.scheduledDate | date:'mediumDate' }} •
+                      {{ item.assignedTechName || 'Unassigned' }}
+                    </div>
+
+                    <div class="sla-item-submeta">
+                      {{ item.status }} • {{ item.priority || 'Unspecified' }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </mat-card>
         </div>
-
-        <div class="sla-column">
-          <h4>{{ dueTodayListTitle }}</h4>
-
-          <div *ngIf="slaSummary.dueTodayItems.length === 0" class="mini-empty-state">
-            {{ dueTodayEmptyState }}
-          </div>
-
-          <div class="sla-item" *ngFor="let item of slaSummary.dueTodayItems">
-            <button
-              type="button"
-              class="sla-link-button"
-              (click)="openWorkOrder(item.workOrderId)"
-            >
-              {{ item.workOrderRef }} - {{ item.title || 'Untitled work order' }}
-            </button>
-
-            <div class="sla-item-meta">
-              {{ item.customerName || 'No customer' }} •
-              {{ item.scheduledDate | date:'mediumDate' }} •
-              {{ item.assignedTechName || 'Unassigned' }}
-            </div>
-
-            <div class="sla-item-submeta">
-              {{ item.status }} • {{ item.priority || 'Unspecified' }}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </mat-card>
-</div>
 
         <div *ngIf="!isTechDashboard" class="analytics-grid">
           <mat-card class="panel-card chart-card">
@@ -407,10 +404,7 @@ interface DashboardTechnicianWorkloadItem {
               Analytics are temporarily unavailable.
             </div>
 
-            <div
-              *ngIf="!analyticsLoading && !analyticsLoadError"
-              class="chart-wrapper"
-            >
+            <div *ngIf="!analyticsLoading && !analyticsLoadError" class="chart-wrapper">
               <canvas
                 baseChart
                 [type]="completionTrendChartType"
@@ -487,12 +481,12 @@ interface DashboardTechnicianWorkloadItem {
               </div>
               <div class="snapshot-item">
                 <span>Role-Aware SLA Views</span>
-                <strong>Next</strong>
+                <strong>Live</strong>
               </div>
             </div>
           </mat-card>
 
-          <mat-card class="panel-card">
+          <mat-card class="panel-card workload-panel">
             <div class="panel-header">
               <div>
                 <h3>Technician Workload Overview</h3>
@@ -512,38 +506,49 @@ interface DashboardTechnicianWorkloadItem {
               No technician workload found yet.
             </div>
 
-            <div *ngIf="!workloadLoading && !workloadLoadError && technicianWorkload.length > 0" class="workload-grid">
-              <div class="workload-card" *ngFor="let item of technicianWorkload">
-                <div class="workload-header">
-                  <div class="workload-name">{{ item.technicianName }}</div>
-                  <div class="workload-total">{{ item.totalAssignedWorkOrders }} active</div>
-                </div>
+            <ng-container *ngIf="!workloadLoading && !workloadLoadError && technicianWorkload.length > 0">
+              <div class="heatmap-legend">
+                <span class="legend-item low">Balanced</span>
+                <span class="legend-item medium">Moderate Load</span>
+                <span class="legend-item high">High Pressure</span>
+              </div>
 
-                <div class="workload-chip-row">
-                  <span class="workload-chip due-chip" [class.has-pressure]="item.dueTodayAssignedWorkOrders > 0">
-                    Due Today: {{ item.dueTodayAssignedWorkOrders }}
-                  </span>
-                  <span class="workload-chip overdue-chip" [class.has-pressure]="item.overdueAssignedWorkOrders > 0">
-                    Overdue: {{ item.overdueAssignedWorkOrders }}
-                  </span>
-                </div>
+              <div class="heatmap-grid">
+                <div
+                  class="heatmap-tile"
+                  *ngFor="let item of technicianWorkload"
+                  [ngClass]="getWorkloadLevel(item)"
+                >
+                  <div class="heatmap-header">
+                    <div class="heatmap-name">{{ item.technicianName }}</div>
+                  <div class="heatmap-level">{{ getWorkloadLabel(item) }}</div>
+                  </div>
 
-                <div class="workload-metrics">
-                  <div class="workload-metric">
-                    <span>Assigned / Open</span>
-                    <strong>{{ item.openAssignedWorkOrders }}</strong>
+                  <div class="heatmap-total">
+                    {{ item.totalAssignedWorkOrders }} active
                   </div>
-                  <div class="workload-metric">
-                    <span>In Progress</span>
-                    <strong>{{ item.inProgressAssignedWorkOrders }}</strong>
-                  </div>
-                  <div class="workload-metric">
-                    <span>Total Active</span>
-                    <strong>{{ item.totalAssignedWorkOrders }}</strong>
+
+                  <div class="heatmap-metrics">
+                    <div class="heatmap-metric">
+                      <span>Open</span>
+                      <strong>{{ item.openAssignedWorkOrders }}</strong>
+                    </div>
+                    <div class="heatmap-metric">
+                      <span>In Progress</span>
+                      <strong>{{ item.inProgressAssignedWorkOrders }}</strong>
+                    </div>
+                    <div class="heatmap-metric">
+                      <span>Due Today</span>
+                      <strong>{{ item.dueTodayAssignedWorkOrders }}</strong>
+                    </div>
+                    <div class="heatmap-metric">
+                      <span>Overdue</span>
+                      <strong>{{ item.overdueAssignedWorkOrders }}</strong>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            </ng-container>
           </mat-card>
 
           <mat-card class="panel-card">
@@ -697,6 +702,11 @@ interface DashboardTechnicianWorkloadItem {
       padding: 16px;
     }
 
+    .workload-panel {
+      display: flex;
+      flex-direction: column;
+    }
+
     .chart-card {
       min-height: 380px;
     }
@@ -842,178 +852,7 @@ interface DashboardTechnicianWorkloadItem {
       font-weight: 600;
       color: #111827;
     }
-.sla-section {
-  margin-top: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
 
-.sla-summary-row {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.sla-badge {
-  padding: 10px 14px;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.overdue-badge {
-  background: #fff7ed;
-  color: #c2410c;
-}
-
-.due-badge {
-  background: #eff6ff;
-  color: #1d4ed8;
-}
-
-.sla-columns {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 20px;
-}
-
-.sla-column h4 {
-  margin: 0 0 12px;
-  font-size: 15px;
-  font-weight: 600;
-  color: #111827;
-}
-
-.sla-item {
-  padding: 12px 0;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.sla-item:last-child {
-  border-bottom: none;
-}
-
-.sla-link-button {
-  border: none;
-  background: none;
-  padding: 0;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  color: #1d4ed8;
-  cursor: pointer;
-  text-align: left;
-}
-
-.sla-link-button:hover {
-  text-decoration: underline;
-}
-
-.sla-item-meta {
-  margin-top: 4px;
-  font-size: 13px;
-  color: #4b5563;
-}
-
-.sla-item-submeta {
-  margin-top: 4px;
-  font-size: 12px;
-  color: #9ca3af;
-}
-
-.mini-empty-state {
-  color: #6b7280;
-  font-size: 14px;
-  padding: 8px 0;
-}
-
-    .workload-grid {
-      margin-top: 16px;
-      display: grid;
-      gap: 14px;
-    }
-
-    .workload-card {
-      border: 1px solid #e5e7eb;
-      border-radius: 14px;
-      padding: 14px;
-      background: #f9fafb;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .workload-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-
-    .workload-name {
-      font-size: 15px;
-      font-weight: 600;
-      color: #111827;
-    }
-
-    .workload-total {
-      font-size: 13px;
-      color: #4b5563;
-      font-weight: 600;
-    }
-
-    .workload-chip-row {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    .workload-chip {
-      border-radius: 999px;
-      padding: 6px 10px;
-      font-size: 12px;
-      font-weight: 600;
-      background: #e5e7eb;
-      color: #374151;
-    }
-
-    .due-chip.has-pressure {
-      background: #dbeafe;
-      color: #1d4ed8;
-    }
-
-    .overdue-chip.has-pressure {
-      background: #ffedd5;
-      color: #c2410c;
-    }
-
-    .workload-metrics {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-      gap: 10px;
-    }
-
-    .workload-metric {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      padding: 10px 12px;
-      border-radius: 12px;
-      background: white;
-      border: 1px solid #e5e7eb;
-    }
-
-    .workload-metric span {
-      font-size: 12px;
-      color: #6b7280;
-    }
-
-    .workload-metric strong {
-      font-size: 18px;
-      color: #111827;
-    }
     .activity-link {
       border: none;
       background: none;
@@ -1041,6 +880,217 @@ interface DashboardTechnicianWorkloadItem {
       color: #9ca3af;
       margin-top: 4px;
     }
+
+    .sla-section {
+      margin-top: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .sla-summary-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .sla-badge {
+      padding: 10px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .overdue-badge {
+      background: #fff7ed;
+      color: #c2410c;
+    }
+
+    .due-badge {
+      background: #eff6ff;
+      color: #1d4ed8;
+    }
+
+    .sla-columns {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    .sla-column h4 {
+      margin: 0 0 12px;
+      font-size: 15px;
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .sla-item {
+      padding: 12px 0;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .sla-item:last-child {
+      border-bottom: none;
+    }
+
+    .sla-link-button {
+      border: none;
+      background: none;
+      padding: 0;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      color: #1d4ed8;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .sla-link-button:hover {
+      text-decoration: underline;
+    }
+
+    .sla-item-meta {
+      margin-top: 4px;
+      font-size: 13px;
+      color: #4b5563;
+    }
+
+    .sla-item-submeta {
+      margin-top: 4px;
+      font-size: 12px;
+      color: #9ca3af;
+    }
+
+    .mini-empty-state {
+      color: #6b7280;
+      font-size: 14px;
+      padding: 8px 0;
+    }
+
+    .heatmap-legend {
+      margin-top: 16px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .legend-item {
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 999px;
+      padding: 6px 10px;
+    }
+
+    .legend-item.low {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .legend-item.medium {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .legend-item.high {
+      background: #ffedd5;
+      color: #c2410c;
+    }
+
+    .heatmap-grid {
+      margin-top: 16px;
+      display: grid;
+      gap: 14px;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      align-items: stretch;
+    }
+
+    .heatmap-tile {
+      border-radius: 16px;
+      padding: 16px;
+      border: 1px solid #e5e7eb;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      min-height: 220px;
+      box-sizing: border-box;
+    }
+
+    .heatmap-tile:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+    }
+
+    .heatmap-tile.low {
+      background: #f0fdf4;
+      border-color: #86efac;
+    }
+
+    .heatmap-tile.medium {
+      background: #fffbeb;
+      border-color: #fcd34d;
+    }
+
+    .heatmap-tile.high {
+      background: #fff7ed;
+      border-color: #fdba74;
+    }
+
+    .heatmap-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .heatmap-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .heatmap-level {
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: 999px;
+      padding: 4px 10px;
+      background: rgba(255,255,255,0.65);
+      color: #374151;
+      white-space: nowrap;
+    }
+
+    .heatmap-total {
+      font-size: 22px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .heatmap-metrics {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .heatmap-metric {
+      background: rgba(255, 255, 255, 0.7);
+      border-radius: 12px;
+      padding: 10px 12px;
+      border: 1px solid rgba(229, 231, 235, 0.9);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .heatmap-metric span {
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    .heatmap-metric strong {
+      font-size: 18px;
+      color: #111827;
+    }
+
     .primary { background: linear-gradient(135deg, #3f51b5, #5c6bc0); }
     .accent { background: linear-gradient(135deg, #e91e63, #ec407a); }
     .warn { background: linear-gradient(135deg, #f44336, #ff7043); }
@@ -1063,7 +1113,18 @@ interface DashboardTechnicianWorkloadItem {
 
       .grid-container,
       .analytics-grid,
-      .details-grid {
+      .details-grid,
+      .sla-columns,
+      .heatmap-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .heatmap-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .heatmap-metrics {
         grid-template-columns: 1fr;
       }
     }
@@ -1088,8 +1149,8 @@ export class DashboardComponent implements OnInit {
   readonly completionTrendChartType: 'line' = 'line';
 
   slaSummary: DashboardSlaSummary | null = null;
-slaLoading = false;
-slaLoadError = false;
+  slaLoading = false;
+  slaLoadError = false;
 
   readonly statusChartOptions: ChartOptions<'pie'> = {
     responsive: true,
@@ -1342,61 +1403,61 @@ slaLoadError = false;
     }
   }
 
-get isRefreshing(): boolean {
-  return this.loading || this.activityLoading || this.analyticsLoading || this.workloadLoading || this.slaLoading;
-}
+  get isRefreshing(): boolean {
+    return this.loading || this.activityLoading || this.analyticsLoading || this.workloadLoading || this.slaLoading;
+  }
 
-get isTechDashboard(): boolean {
-  return this.auth.isTech();
-}
+  get isTechDashboard(): boolean {
+    return this.auth.isTech();
+  }
 
-get dashboardSubtitle(): string {
-  return this.isTechDashboard
-    ? 'Your SLA workload and due work orders'
-    : 'Overview of technicians and work order activity';
-}
+  get dashboardSubtitle(): string {
+    return this.isTechDashboard
+      ? 'Your SLA workload and due work orders'
+      : 'Overview of technicians and work order activity';
+  }
 
-get dueTodayCardLabel(): string {
-  return this.isTechDashboard ? 'My Due Today' : 'Due Today';
-}
+  get dueTodayCardLabel(): string {
+    return this.isTechDashboard ? 'My Due Today' : 'Due Today';
+  }
 
-get overdueCardLabel(): string {
-  return this.isTechDashboard ? 'My Overdue' : 'Overdue';
-}
+  get overdueCardLabel(): string {
+    return this.isTechDashboard ? 'My Overdue' : 'Overdue';
+  }
 
-get slaPanelTitle(): string {
-  return this.isTechDashboard ? 'My SLA Tracking' : 'SLA Tracking';
-}
+  get slaPanelTitle(): string {
+    return this.isTechDashboard ? 'My SLA Tracking' : 'SLA Tracking';
+  }
 
-get slaPanelSubtitle(): string {
-  return this.isTechDashboard
-    ? 'Your overdue and due-today work orders requiring attention'
-    : 'Overdue and due-today work orders requiring attention';
-}
+  get slaPanelSubtitle(): string {
+    return this.isTechDashboard
+      ? 'Your overdue and due-today work orders requiring attention'
+      : 'Overdue and due-today work orders requiring attention';
+  }
 
-get overdueBadgeLabel(): string {
-  return this.isTechDashboard ? 'My Overdue' : 'Overdue';
-}
+  get overdueBadgeLabel(): string {
+    return this.isTechDashboard ? 'My Overdue' : 'Overdue';
+  }
 
-get dueTodayBadgeLabel(): string {
-  return this.isTechDashboard ? 'My Due Today' : 'Due Today';
-}
+  get dueTodayBadgeLabel(): string {
+    return this.isTechDashboard ? 'My Due Today' : 'Due Today';
+  }
 
-get overdueListTitle(): string {
-  return this.isTechDashboard ? 'My Overdue Work Orders' : 'Overdue Items';
-}
+  get overdueListTitle(): string {
+    return this.isTechDashboard ? 'My Overdue Work Orders' : 'Overdue Items';
+  }
 
-get dueTodayListTitle(): string {
-  return this.isTechDashboard ? 'My Due Today Work Orders' : 'Due Today';
-}
+  get dueTodayListTitle(): string {
+    return this.isTechDashboard ? 'My Due Today Work Orders' : 'Due Today';
+  }
 
-get overdueEmptyState(): string {
-  return this.isTechDashboard ? 'You have no overdue work orders.' : 'No overdue work orders.';
-}
+  get overdueEmptyState(): string {
+    return this.isTechDashboard ? 'You have no overdue work orders.' : 'No overdue work orders.';
+  }
 
-get dueTodayEmptyState(): string {
-  return this.isTechDashboard ? 'You have no work orders due today.' : 'No work orders due today.';
-}
+  get dueTodayEmptyState(): string {
+    return this.isTechDashboard ? 'You have no work orders due today.' : 'No work orders due today.';
+  }
 
   hasChartData(data: readonly number[]): boolean {
     return data.some((value) => value > 0);
@@ -1412,7 +1473,6 @@ get dueTodayEmptyState(): string {
 
   private applyAnalyticsCharts(analytics: DashboardAnalytics): void {
     this.statusChartData = {
-      
       labels: analytics.workOrdersByStatus.map((item) => item.label),
       datasets: [
         {
@@ -1444,11 +1504,36 @@ get dueTodayEmptyState(): string {
   }
 
   getStatusColor(key: string): string {
-  switch (key) {
-    case 'OPEN': return '#ef4444';
-    case 'IN_PROGRESS': return '#0ea5e9';
-    case 'COMPLETED': return '#22c55e';
-    default: return '#6b7280';
+    switch (key) {
+      case 'OPEN': return '#ef4444';
+      case 'IN_PROGRESS': return '#0ea5e9';
+      case 'COMPLETED': return '#22c55e';
+      default: return '#6b7280';
+    }
   }
-}
+
+  getWorkloadLevel(item: DashboardTechnicianWorkloadItem): 'low' | 'medium' | 'high' {
+    if (item.overdueAssignedWorkOrders > 0) {
+      return 'high';
+    }
+
+    if (item.dueTodayAssignedWorkOrders > 0 || item.totalAssignedWorkOrders >= 5) {
+      return 'medium';
+    }
+
+    return 'low';
+  }
+
+  getWorkloadLabel(item: DashboardTechnicianWorkloadItem): string {
+    const level = this.getWorkloadLevel(item);
+
+    switch (level) {
+      case 'high':
+        return 'High Pressure';
+      case 'medium':
+        return 'Moderate Load';
+      default:
+        return 'Balanced';
+    }
+  }
 }
