@@ -5,6 +5,7 @@ import { BaseChartDirective } from 'ng2-charts';
 import { Router } from '@angular/router';
 import { MATERIAL_IMPORTS } from '../../../material-imports';
 import { ApiService } from '../../services/api-service';
+import { AuthService } from '../../services/auth-service';
 import { NotificationService } from '../../services/notification.service';
 
 interface DashboardSummary {
@@ -64,8 +65,16 @@ interface DashboardSlaSummary {
   dueTodayCount: number;
   overdueItems: DashboardSlaWorkOrderItem[];
   dueTodayItems: DashboardSlaWorkOrderItem[];
+}
 
-  
+interface DashboardTechnicianWorkloadItem {
+  technicianId: number | null;
+  technicianName: string;
+  totalAssignedWorkOrders: number;
+  openAssignedWorkOrders: number;
+  inProgressAssignedWorkOrders: number;
+  dueTodayAssignedWorkOrders: number;
+  overdueAssignedWorkOrders: number;
 }
 @Component({
   selector: 'app-dashboard',
@@ -78,7 +87,7 @@ interface DashboardSlaSummary {
       <div class="header-row">
         <div class="header-text">
           <h2 class="title">Dashboard</h2>
-          <p class="subtitle">Overview of technicians and work order activity</p>
+          <p class="subtitle">{{ dashboardSubtitle }}</p>
           <p class="updated-at" *ngIf="lastUpdated">
             Last updated: {{ lastUpdated | date:'medium' }}
           </p>
@@ -119,7 +128,7 @@ interface DashboardSlaSummary {
       <ng-container *ngIf="!loading && !loadError">
 
         <!-- KPI CARDS -->
-        <div class="grid-container">
+        <div *ngIf="!isTechDashboard" class="grid-container">
           <mat-card class="stat-card primary mat-elevation-z3">
             <div class="card-top">
               <mat-icon class="icon">groups</mat-icon>
@@ -201,12 +210,30 @@ interface DashboardSlaSummary {
           </mat-card>
         </div>
 
+        <div *ngIf="isTechDashboard" class="grid-container">
+          <mat-card class="stat-card sla-due mat-elevation-z3">
+            <div class="card-top">
+              <mat-icon class="icon">today</mat-icon>
+            </div>
+            <div class="value">{{ slaSummary?.dueTodayCount ?? 0 }}</div>
+            <div class="label">{{ dueTodayCardLabel }}</div>
+          </mat-card>
+
+          <mat-card class="stat-card overdue mat-elevation-z3">
+            <div class="card-top">
+              <mat-icon class="icon">schedule</mat-icon>
+            </div>
+            <div class="value">{{ slaSummary?.overdueCount ?? 0 }}</div>
+            <div class="label">{{ overdueCardLabel }}</div>
+          </mat-card>
+        </div>
+
         <div class="details-grid">
   <mat-card class="panel-card">
     <div class="panel-header">
       <div>
-        <h3>SLA Tracking</h3>
-        <p class="panel-subtitle">Overdue and due-today work orders requiring attention</p>
+        <h3>{{ slaPanelTitle }}</h3>
+        <p class="panel-subtitle">{{ slaPanelSubtitle }}</p>
       </div>
     </div>
 
@@ -221,19 +248,19 @@ interface DashboardSlaSummary {
     <div *ngIf="!slaLoading && !slaLoadError && slaSummary" class="sla-section">
       <div class="sla-summary-row">
         <div class="sla-badge overdue-badge">
-          Overdue: {{ slaSummary.overdueCount }}
+          {{ overdueBadgeLabel }}: {{ slaSummary.overdueCount }}
         </div>
         <div class="sla-badge due-badge">
-          Due Today: {{ slaSummary.dueTodayCount }}
+          {{ dueTodayBadgeLabel }}: {{ slaSummary.dueTodayCount }}
         </div>
       </div>
 
       <div class="sla-columns">
         <div class="sla-column">
-          <h4>Overdue Items</h4>
+          <h4>{{ overdueListTitle }}</h4>
 
           <div *ngIf="slaSummary.overdueItems.length === 0" class="mini-empty-state">
-            No overdue work orders.
+            {{ overdueEmptyState }}
           </div>
 
           <div class="sla-item" *ngFor="let item of slaSummary.overdueItems">
@@ -260,10 +287,10 @@ interface DashboardSlaSummary {
         </div>
 
         <div class="sla-column">
-          <h4>Due Today</h4>
+          <h4>{{ dueTodayListTitle }}</h4>
 
           <div *ngIf="slaSummary.dueTodayItems.length === 0" class="mini-empty-state">
-            No work orders due today.
+            {{ dueTodayEmptyState }}
           </div>
 
           <div class="sla-item" *ngFor="let item of slaSummary.dueTodayItems">
@@ -291,7 +318,7 @@ interface DashboardSlaSummary {
   </mat-card>
 </div>
 
-        <div class="analytics-grid">
+        <div *ngIf="!isTechDashboard" class="analytics-grid">
           <mat-card class="panel-card chart-card">
             <div class="panel-header">
               <div>
@@ -394,7 +421,7 @@ interface DashboardSlaSummary {
           </mat-card>
         </div>
 
-        <div class="details-grid">
+        <div *ngIf="!isTechDashboard" class="details-grid">
           <mat-card class="panel-card">
             <div class="panel-header">
               <h3>Work Order Snapshot</h3>
@@ -467,21 +494,54 @@ interface DashboardSlaSummary {
 
           <mat-card class="panel-card">
             <div class="panel-header">
-              <h3>Technician Overview</h3>
+              <div>
+                <h3>Technician Workload Overview</h3>
+                <p class="panel-subtitle">Assigned load and SLA pressure across the team</p>
+              </div>
             </div>
 
-            <div class="snapshot-list">
-              <div class="snapshot-item">
-                <span>Total Technicians</span>
-                <strong>{{ summary?.totalTechnicians ?? 0 }}</strong>
-              </div>
-              <div class="snapshot-item">
-                <span>Assigned Workload View</span>
-                <strong>Coming Soon</strong>
-              </div>
-              <div class="snapshot-item">
-                <span>Charts & Analytics</span>
-                <strong>Live</strong>
+            <div *ngIf="workloadLoading" class="panel-loading compact-loading">
+              <mat-progress-spinner diameter="32" mode="indeterminate"></mat-progress-spinner>
+            </div>
+
+            <div *ngIf="!workloadLoading && workloadLoadError" class="compact-empty-state">
+              Technician workload is temporarily unavailable.
+            </div>
+
+            <div *ngIf="!workloadLoading && !workloadLoadError && technicianWorkload.length === 0" class="compact-empty-state">
+              No technician workload found yet.
+            </div>
+
+            <div *ngIf="!workloadLoading && !workloadLoadError && technicianWorkload.length > 0" class="workload-grid">
+              <div class="workload-card" *ngFor="let item of technicianWorkload">
+                <div class="workload-header">
+                  <div class="workload-name">{{ item.technicianName }}</div>
+                  <div class="workload-total">{{ item.totalAssignedWorkOrders }} active</div>
+                </div>
+
+                <div class="workload-chip-row">
+                  <span class="workload-chip due-chip" [class.has-pressure]="item.dueTodayAssignedWorkOrders > 0">
+                    Due Today: {{ item.dueTodayAssignedWorkOrders }}
+                  </span>
+                  <span class="workload-chip overdue-chip" [class.has-pressure]="item.overdueAssignedWorkOrders > 0">
+                    Overdue: {{ item.overdueAssignedWorkOrders }}
+                  </span>
+                </div>
+
+                <div class="workload-metrics">
+                  <div class="workload-metric">
+                    <span>Assigned / Open</span>
+                    <strong>{{ item.openAssignedWorkOrders }}</strong>
+                  </div>
+                  <div class="workload-metric">
+                    <span>In Progress</span>
+                    <strong>{{ item.inProgressAssignedWorkOrders }}</strong>
+                  </div>
+                  <div class="workload-metric">
+                    <span>Total Active</span>
+                    <strong>{{ item.totalAssignedWorkOrders }}</strong>
+                  </div>
+                </div>
               </div>
             </div>
           </mat-card>
@@ -718,8 +778,22 @@ interface DashboardSlaSummary {
       min-height: 280px;
     }
 
+    .compact-loading {
+      min-height: 160px;
+    }
+
     .empty-state {
       min-height: 280px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: #6b7280;
+      font-size: 14px;
+    }
+
+    .compact-empty-state {
+      min-height: 160px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -853,6 +927,93 @@ interface DashboardSlaSummary {
   font-size: 14px;
   padding: 8px 0;
 }
+
+    .workload-grid {
+      margin-top: 16px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .workload-card {
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      padding: 14px;
+      background: #f9fafb;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .workload-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .workload-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .workload-total {
+      font-size: 13px;
+      color: #4b5563;
+      font-weight: 600;
+    }
+
+    .workload-chip-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .workload-chip {
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      background: #e5e7eb;
+      color: #374151;
+    }
+
+    .due-chip.has-pressure {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+
+    .overdue-chip.has-pressure {
+      background: #ffedd5;
+      color: #c2410c;
+    }
+
+    .workload-metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 10px;
+    }
+
+    .workload-metric {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: white;
+      border: 1px solid #e5e7eb;
+    }
+
+    .workload-metric span {
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    .workload-metric strong {
+      font-size: 18px;
+      color: #111827;
+    }
     .activity-link {
       border: none;
       background: none;
@@ -911,6 +1072,7 @@ interface DashboardSlaSummary {
 export class DashboardComponent implements OnInit {
   summary: DashboardSummary | null = null;
   analytics: DashboardAnalytics | null = null;
+  technicianWorkload: DashboardTechnicianWorkloadItem[] = [];
   loading = true;
   loadError = false;
   lastUpdated: Date | null = null;
@@ -918,6 +1080,8 @@ export class DashboardComponent implements OnInit {
   activityLoading = false;
   analyticsLoading = false;
   analyticsLoadError = false;
+  workloadLoading = false;
+  workloadLoadError = false;
 
   readonly statusChartType: 'pie' = 'pie';
   readonly priorityChartType: 'bar' = 'bar';
@@ -1026,6 +1190,7 @@ slaLoadError = false;
 
   constructor(
     private api: ApiService,
+    private auth: AuthService,
     private notify: NotificationService,
     private router: Router
   ) {}
@@ -1035,10 +1200,27 @@ slaLoadError = false;
   }
 
   refreshDashboard(): void {
-     this.loadSummary();
-  this.loadRecentActivity();
-  this.loadAnalytics();
-  this.loadSlaSummary();
+    if (this.isTechDashboard) {
+      this.summary = null;
+      this.analytics = null;
+      this.technicianWorkload = [];
+      this.recentActivity = [];
+      this.activityLoading = false;
+      this.analyticsLoading = false;
+      this.analyticsLoadError = false;
+      this.workloadLoading = false;
+      this.workloadLoadError = false;
+      this.loading = true;
+      this.loadError = false;
+      this.loadSlaSummary(true);
+      return;
+    }
+
+    this.loadSummary();
+    this.loadRecentActivity();
+    this.loadAnalytics();
+    this.loadTechnicianWorkload();
+    this.loadSlaSummary();
   }
 
   loadRecentActivity(): void {
@@ -1056,22 +1238,37 @@ slaLoadError = false;
     });
   }
 
-  loadSlaSummary(): void {
-  this.slaLoading = true;
-  this.slaLoadError = false;
+  loadSlaSummary(asPrimaryLoad = false): void {
+    this.slaLoading = true;
+    this.slaLoadError = false;
 
-  this.api.get<DashboardSlaSummary>('dashboard/sla').subscribe({
-    next: (res) => {
-      this.slaSummary = res;
-      this.slaLoading = false;
-    },
-    error: () => {
-      this.slaLoading = false;
-      this.slaLoadError = true;
-      this.notify.error('Failed to load SLA tracking data');
+    if (asPrimaryLoad) {
+      this.loading = true;
+      this.loadError = false;
     }
-  });
-}
+
+    this.api.get<DashboardSlaSummary>('dashboard/sla').subscribe({
+      next: (res) => {
+        this.slaSummary = res;
+        this.slaLoading = false;
+        this.lastUpdated = new Date();
+
+        if (asPrimaryLoad) {
+          this.loading = false;
+        }
+      },
+      error: () => {
+        this.slaLoading = false;
+        this.slaLoadError = true;
+        this.notify.error('Failed to load SLA tracking data');
+
+        if (asPrimaryLoad) {
+          this.loading = false;
+          this.loadError = true;
+        }
+      }
+    });
+  }
 
   loadAnalytics(): void {
     this.analyticsLoading = true;
@@ -1091,7 +1288,22 @@ slaLoadError = false;
     });
   }
 
-  
+  loadTechnicianWorkload(): void {
+    this.workloadLoading = true;
+    this.workloadLoadError = false;
+
+    this.api.get<DashboardTechnicianWorkloadItem[]>('dashboard/technician-workload').subscribe({
+      next: (res) => {
+        this.technicianWorkload = res ?? [];
+        this.workloadLoading = false;
+      },
+      error: () => {
+        this.workloadLoading = false;
+        this.workloadLoadError = true;
+        this.notify.error('Failed to load technician workload');
+      }
+    });
+  }
 
   loadSummary(): void {
     this.loading = true;
@@ -1131,7 +1343,59 @@ slaLoadError = false;
   }
 
 get isRefreshing(): boolean {
-  return this.loading || this.activityLoading || this.analyticsLoading || this.slaLoading;
+  return this.loading || this.activityLoading || this.analyticsLoading || this.workloadLoading || this.slaLoading;
+}
+
+get isTechDashboard(): boolean {
+  return this.auth.isTech();
+}
+
+get dashboardSubtitle(): string {
+  return this.isTechDashboard
+    ? 'Your SLA workload and due work orders'
+    : 'Overview of technicians and work order activity';
+}
+
+get dueTodayCardLabel(): string {
+  return this.isTechDashboard ? 'My Due Today' : 'Due Today';
+}
+
+get overdueCardLabel(): string {
+  return this.isTechDashboard ? 'My Overdue' : 'Overdue';
+}
+
+get slaPanelTitle(): string {
+  return this.isTechDashboard ? 'My SLA Tracking' : 'SLA Tracking';
+}
+
+get slaPanelSubtitle(): string {
+  return this.isTechDashboard
+    ? 'Your overdue and due-today work orders requiring attention'
+    : 'Overdue and due-today work orders requiring attention';
+}
+
+get overdueBadgeLabel(): string {
+  return this.isTechDashboard ? 'My Overdue' : 'Overdue';
+}
+
+get dueTodayBadgeLabel(): string {
+  return this.isTechDashboard ? 'My Due Today' : 'Due Today';
+}
+
+get overdueListTitle(): string {
+  return this.isTechDashboard ? 'My Overdue Work Orders' : 'Overdue Items';
+}
+
+get dueTodayListTitle(): string {
+  return this.isTechDashboard ? 'My Due Today Work Orders' : 'Due Today';
+}
+
+get overdueEmptyState(): string {
+  return this.isTechDashboard ? 'You have no overdue work orders.' : 'No overdue work orders.';
+}
+
+get dueTodayEmptyState(): string {
+  return this.isTechDashboard ? 'You have no work orders due today.' : 'No work orders due today.';
 }
 
   hasChartData(data: readonly number[]): boolean {
