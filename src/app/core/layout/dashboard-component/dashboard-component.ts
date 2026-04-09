@@ -78,6 +78,26 @@ interface DashboardTechnicianWorkloadItem {
   overdueAssignedWorkOrders: number;
 }
 
+interface LegacyDashboardTechnicianWorkloadItem {
+  technicianId: number | null;
+  technicianName: string;
+  totalAssigned: number;
+  openAssigned: number;
+  inProgressAssigned: number;
+  dueTodayAssigned: number;
+  overdueAssigned: number;
+}
+
+interface LegacyDashboardTechnicianWorkloadSummary {
+  technicianCount: number;
+  items: LegacyDashboardTechnicianWorkloadItem[];
+}
+
+type DashboardTechnicianWorkloadResponse =
+  | DashboardTechnicianWorkloadItem[]
+  | LegacyDashboardTechnicianWorkloadItem[]
+  | LegacyDashboardTechnicianWorkloadSummary;
+
 @Component({
   selector: 'app-dashboard',
   standalone: true,
@@ -521,7 +541,7 @@ interface DashboardTechnicianWorkloadItem {
                 >
                   <div class="heatmap-header">
                     <div class="heatmap-name">{{ item.technicianName }}</div>
-                  <div class="heatmap-level">{{ getWorkloadLabel(item) }}</div>
+                    <div class="heatmap-level">{{ getWorkloadLabel(item) }}</div>
                   </div>
 
                   <div class="heatmap-total">
@@ -1353,9 +1373,9 @@ export class DashboardComponent implements OnInit {
     this.workloadLoading = true;
     this.workloadLoadError = false;
 
-    this.api.get<DashboardTechnicianWorkloadItem[]>('dashboard/technician-workload').subscribe({
+    this.api.get<DashboardTechnicianWorkloadResponse>('dashboard/technician-workload').subscribe({
       next: (res) => {
-        this.technicianWorkload = res ?? [];
+        this.technicianWorkload = this.normalizeTechnicianWorkload(res);
         this.workloadLoading = false;
       },
       error: () => {
@@ -1535,5 +1555,31 @@ export class DashboardComponent implements OnInit {
       default:
         return 'Balanced';
     }
+  }
+
+  private normalizeTechnicianWorkload(
+    response: DashboardTechnicianWorkloadResponse | null | undefined
+  ): DashboardTechnicianWorkloadItem[] {
+    const items = Array.isArray(response) ? response : response?.items ?? [];
+
+    return items.map((item) => this.normalizeTechnicianWorkloadItem(item));
+  }
+
+  private normalizeTechnicianWorkloadItem(
+    item: DashboardTechnicianWorkloadItem | LegacyDashboardTechnicianWorkloadItem
+  ): DashboardTechnicianWorkloadItem {
+    if ('totalAssignedWorkOrders' in item) {
+      return item;
+    }
+
+    return {
+      technicianId: item.technicianId,
+      technicianName: item.technicianName,
+      totalAssignedWorkOrders: item.totalAssigned,
+      openAssignedWorkOrders: item.openAssigned,
+      inProgressAssignedWorkOrders: item.inProgressAssigned,
+      dueTodayAssignedWorkOrders: item.dueTodayAssigned,
+      overdueAssignedWorkOrders: item.overdueAssigned
+    };
   }
 }
