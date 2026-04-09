@@ -13,7 +13,7 @@ import { ApiService } from '../core/services/api-service';
 import { AssignTechnicianDialogComponent } from './assign-technician-dialog.component';
 import { AddWorkOrderDialogComponent } from './add-workorder-dialog.component';
 import { AuthService } from '../core/services/auth-service';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { WorkorderTimelineDialogComponent } from './workorder-timeline-dialog.component';
 import { EditWorkOrderDialogComponent } from './workorder-edit-dialog.component';
 
@@ -98,6 +98,21 @@ interface WorkOrder {
       </ng-container>
 
     </div>
+
+    <mat-card *ngIf="!isTech && technicianIdFilter" class="mb-4">
+      <div class="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <div class="text-sm font-semibold text-gray-900">Workload Filter Active</div>
+          <div class="text-sm text-gray-500">
+            Showing work orders for {{ technicianNameFilter || ('Technician #' + technicianIdFilter) }}
+          </div>
+        </div>
+
+        <button mat-stroked-button color="primary" (click)="clearDashboardFilter()">
+          Clear Filter
+        </button>
+      </div>
+    </mat-card>
 
     <mat-card>
       <mat-progress-bar *ngIf="loading" mode="indeterminate"></mat-progress-bar>
@@ -219,6 +234,8 @@ export class WorkordersListComponent implements OnInit, AfterViewInit {
   search = '';
   priorityFilter = '';
   statusFilter = '';
+  technicianIdFilter: number | null = null;
+  technicianNameFilter = '';
 
   sortBy = 'id,desc';
   loading = false;
@@ -230,6 +247,7 @@ export class WorkordersListComponent implements OnInit, AfterViewInit {
     private api: ApiService,
     private dialog: MatDialog,
     private auth: AuthService,
+    private route: ActivatedRoute,
     private router: Router,
     private snackBar: MatSnackBar
   ) {}
@@ -237,7 +255,16 @@ export class WorkordersListComponent implements OnInit, AfterViewInit {
   ngOnInit() {
     this.role = this.auth.getRole() || '';
     this.isTech = this.role === 'TECH';
-    this.loadPage(0);
+
+    this.route.queryParamMap.subscribe(params => {
+      if (!this.isTech) {
+        const technicianId = params.get('technicianId');
+        this.technicianIdFilter = technicianId ? Number(technicianId) : null;
+        this.technicianNameFilter = params.get('technicianName') ?? '';
+      }
+
+      this.loadPage(0);
+    });
   }
 
   ngAfterViewInit() {
@@ -284,6 +311,7 @@ openEditDialog(w: WorkOrder) {
       if (this.search) params.search = this.search;
       if (this.priorityFilter) params.priority = this.priorityFilter;
       if (this.statusFilter) params.status = this.statusFilter;
+      if (this.technicianIdFilter) params.technicianId = this.technicianIdFilter;
     }
 
     this.api.getPageAdvanced<WorkOrder>('workorders', params).subscribe({
@@ -309,6 +337,17 @@ openEditDialog(w: WorkOrder) {
   clearSearch() {
     this.search = '';
     this.loadPage(0);
+  }
+
+  clearDashboardFilter() {
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: {
+        technicianId: null,
+        technicianName: null
+      },
+      queryParamsHandling: 'merge'
+    });
   }
 
   applyFilters() {

@@ -19,6 +19,8 @@ interface DashboardSummary {
   overdueWorkOrders?: number;
   completedToday?: number;
   highPriorityOpen?: number;
+  activeAssignedWorkOrders?: number;
+  assignedInProgressWorkOrders?: number;
 }
 
 interface DashboardRecentActivityItem {
@@ -232,7 +234,7 @@ type DashboardTechnicianWorkloadResponse =
             <div class="card-top">
               <mat-icon class="icon">today</mat-icon>
             </div>
-            <div class="value">{{ slaSummary?.dueTodayCount ?? 0 }}</div>
+            <div class="value">{{ technicianDueTodayCount }}</div>
             <div class="label">{{ dueTodayCardLabel }}</div>
           </mat-card>
 
@@ -240,8 +242,24 @@ type DashboardTechnicianWorkloadResponse =
             <div class="card-top">
               <mat-icon class="icon">schedule</mat-icon>
             </div>
-            <div class="value">{{ slaSummary?.overdueCount ?? 0 }}</div>
+            <div class="value">{{ technicianOverdueCount }}</div>
             <div class="label">{{ overdueCardLabel }}</div>
+          </mat-card>
+
+          <mat-card class="stat-card primary mat-elevation-z3">
+            <div class="card-top">
+              <mat-icon class="icon">assignment_ind</mat-icon>
+            </div>
+            <div class="value">{{ technicianAssignedActiveCount }}</div>
+            <div class="label">My Assigned Active</div>
+          </mat-card>
+
+          <mat-card class="stat-card in-progress mat-elevation-z3">
+            <div class="card-top">
+              <mat-icon class="icon">bolt</mat-icon>
+            </div>
+            <div class="value">{{ technicianInProgressCount }}</div>
+            <div class="label">My In Progress</div>
           </mat-card>
         </div>
 
@@ -328,6 +346,53 @@ type DashboardTechnicianWorkloadResponse =
                     <div class="sla-item-submeta">
                       {{ item.status }} • {{ item.priority || 'Unspecified' }}
                     </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </mat-card>
+
+          <mat-card *ngIf="isTechDashboard" class="panel-card">
+            <div class="panel-header">
+              <div>
+                <h3>{{ recentActivityTitle }}</h3>
+                <p class="panel-subtitle">{{ recentActivitySubtitle }}</p>
+              </div>
+            </div>
+
+            <div *ngIf="activityLoading" class="panel-loading">
+              <mat-progress-spinner diameter="32" mode="indeterminate"></mat-progress-spinner>
+            </div>
+
+            <div *ngIf="!activityLoading && activityLoadError" class="empty-state">
+              Recent activity is temporarily unavailable.
+            </div>
+
+            <div *ngIf="!activityLoading && !activityLoadError && recentActivity.length === 0" class="empty-state">
+              No recent activity found.
+            </div>
+
+            <div *ngIf="!activityLoading && !activityLoadError && recentActivity.length > 0" class="activity-list">
+              <div class="activity-item" *ngFor="let item of recentActivity">
+                <div class="activity-icon">
+                  <mat-icon>{{ getActivityIcon(item.eventType) }}</mat-icon>
+                </div>
+
+                <div class="activity-content">
+                  <button
+                    *ngIf="item.workOrderId; else plainTechActivityTitle"
+                    type="button"
+                    class="activity-link"
+                    (click)="openWorkOrder(item.workOrderId)"
+                  >
+                    {{ item.title }}
+                  </button>
+                  <ng-template #plainTechActivityTitle>
+                    <div class="activity-title">{{ item.title }}</div>
+                  </ng-template>
+                  <div class="activity-description">{{ item.description }}</div>
+                  <div class="activity-meta">
+                    {{ item.actor || 'SYSTEM' }} • {{ item.createdAt | date:'medium' }}
                   </div>
                 </div>
               </div>
@@ -538,6 +603,10 @@ type DashboardTechnicianWorkloadResponse =
                   class="heatmap-tile"
                   *ngFor="let item of technicianWorkload"
                   [ngClass]="getWorkloadLevel(item)"
+                  (click)="openTechnicianWorkload(item)"
+                  (keyup.enter)="openTechnicianWorkload(item)"
+                  tabindex="0"
+                  role="button"
                 >
                   <div class="heatmap-header">
                     <div class="heatmap-name">{{ item.technicianName }}</div>
@@ -573,18 +642,25 @@ type DashboardTechnicianWorkloadResponse =
 
           <mat-card class="panel-card">
             <div class="panel-header">
-              <h3>Recent Activity</h3>
+              <div>
+                <h3>{{ recentActivityTitle }}</h3>
+                <p class="panel-subtitle">{{ recentActivitySubtitle }}</p>
+              </div>
             </div>
 
             <div *ngIf="activityLoading" class="panel-loading">
               <mat-progress-spinner diameter="32" mode="indeterminate"></mat-progress-spinner>
             </div>
 
-            <div *ngIf="!activityLoading && recentActivity.length === 0" class="empty-state">
+            <div *ngIf="!activityLoading && activityLoadError" class="empty-state">
+              Recent activity is temporarily unavailable.
+            </div>
+
+            <div *ngIf="!activityLoading && !activityLoadError && recentActivity.length === 0" class="empty-state">
               No recent activity found.
             </div>
 
-            <div *ngIf="!activityLoading && recentActivity.length > 0" class="activity-list">
+            <div *ngIf="!activityLoading && !activityLoadError && recentActivity.length > 0" class="activity-list">
               <div class="activity-item" *ngFor="let item of recentActivity">
                 <div class="activity-icon">
                   <mat-icon>{{ getActivityIcon(item.eventType) }}</mat-icon>
@@ -1034,6 +1110,8 @@ type DashboardTechnicianWorkloadResponse =
       transition: transform 0.2s ease, box-shadow 0.2s ease;
       min-height: 220px;
       box-sizing: border-box;
+      cursor: pointer;
+      text-align: left;
     }
 
     .heatmap-tile:hover {
@@ -1159,6 +1237,7 @@ export class DashboardComponent implements OnInit {
   lastUpdated: Date | null = null;
   recentActivity: DashboardRecentActivityItem[] = [];
   activityLoading = false;
+  activityLoadError = false;
   analyticsLoading = false;
   analyticsLoadError = false;
   workloadLoading = false;
@@ -1281,23 +1360,23 @@ export class DashboardComponent implements OnInit {
   }
 
   refreshDashboard(): void {
+    this.recentActivity = [];
+    this.activityLoadError = false;
+
     if (this.isTechDashboard) {
-      this.summary = null;
       this.analytics = null;
       this.technicianWorkload = [];
-      this.recentActivity = [];
-      this.activityLoading = false;
       this.analyticsLoading = false;
       this.analyticsLoadError = false;
       this.workloadLoading = false;
       this.workloadLoadError = false;
-      this.loading = true;
-      this.loadError = false;
-      this.loadSlaSummary(true);
+      this.loadSummary(true);
+      this.loadRecentActivity();
+      this.loadSlaSummary();
       return;
     }
 
-    this.loadSummary();
+    this.loadSummary(true);
     this.loadRecentActivity();
     this.loadAnalytics();
     this.loadTechnicianWorkload();
@@ -1306,6 +1385,7 @@ export class DashboardComponent implements OnInit {
 
   loadRecentActivity(): void {
     this.activityLoading = true;
+    this.activityLoadError = false;
 
     this.api.get<DashboardRecentActivityItem[]>('dashboard/recent-activity').subscribe({
       next: (res) => {
@@ -1314,6 +1394,7 @@ export class DashboardComponent implements OnInit {
       },
       error: () => {
         this.activityLoading = false;
+        this.activityLoadError = true;
         this.notify.error('Failed to load recent activity');
       }
     });
@@ -1386,19 +1467,27 @@ export class DashboardComponent implements OnInit {
     });
   }
 
-  loadSummary(): void {
-    this.loading = true;
-    this.loadError = false;
+  loadSummary(asPrimaryLoad = false): void {
+    if (asPrimaryLoad) {
+      this.loading = true;
+      this.loadError = false;
+    }
 
     this.api.get<DashboardSummary>('dashboard/summary').subscribe({
       next: (res) => {
         this.summary = res;
         this.lastUpdated = new Date();
-        this.loading = false;
+
+        if (asPrimaryLoad) {
+          this.loading = false;
+        }
       },
       error: () => {
-        this.loading = false;
-        this.loadError = true;
+        if (asPrimaryLoad) {
+          this.loading = false;
+          this.loadError = true;
+        }
+
         this.notify.error('Failed to load dashboard data');
       }
     });
@@ -1432,9 +1521,15 @@ export class DashboardComponent implements OnInit {
   }
 
   get dashboardSubtitle(): string {
-    return this.isTechDashboard
-      ? 'Your SLA workload and due work orders'
-      : 'Overview of technicians and work order activity';
+    if (this.isTechDashboard) {
+      return 'Your assigned workload, due work, and recent activity';
+    }
+
+    if (this.auth.isDispatch()) {
+      return 'Dispatch view of workload pressure, SLA risk, and field activity';
+    }
+
+    return 'Operational view of technicians, workload, and service performance';
   }
 
   get dueTodayCardLabel(): string {
@@ -1479,6 +1574,32 @@ export class DashboardComponent implements OnInit {
     return this.isTechDashboard ? 'You have no work orders due today.' : 'No work orders due today.';
   }
 
+  get technicianDueTodayCount(): number {
+    return this.summary?.dueTodayWorkOrders ?? this.slaSummary?.dueTodayCount ?? 0;
+  }
+
+  get technicianOverdueCount(): number {
+    return this.summary?.overdueWorkOrders ?? this.slaSummary?.overdueCount ?? 0;
+  }
+
+  get technicianAssignedActiveCount(): number {
+    return this.summary?.activeAssignedWorkOrders ?? 0;
+  }
+
+  get technicianInProgressCount(): number {
+    return this.summary?.assignedInProgressWorkOrders ?? 0;
+  }
+
+  get recentActivityTitle(): string {
+    return this.isTechDashboard ? 'My Recent Activity' : 'Recent Activity';
+  }
+
+  get recentActivitySubtitle(): string {
+    return this.isTechDashboard
+      ? 'Updates across your assigned work orders'
+      : 'Latest work order activity across the team';
+  }
+
   hasChartData(data: readonly number[]): boolean {
     return data.some((value) => value > 0);
   }
@@ -1489,6 +1610,19 @@ export class DashboardComponent implements OnInit {
     }
 
     this.router.navigate(['/workorders', workOrderId]);
+  }
+
+  openTechnicianWorkload(item: DashboardTechnicianWorkloadItem): void {
+    if (!item.technicianId) {
+      return;
+    }
+
+    this.router.navigate(['/workorders'], {
+      queryParams: {
+        technicianId: item.technicianId,
+        technicianName: item.technicianName
+      }
+    });
   }
 
   private applyAnalyticsCharts(analytics: DashboardAnalytics): void {
