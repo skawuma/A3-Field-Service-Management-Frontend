@@ -1,4 +1,5 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, DestroyRef, OnDestroy, OnInit, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { ChartConfiguration, ChartOptions } from 'chart.js';
 import { BaseChartDirective } from 'ng2-charts';
@@ -7,6 +8,8 @@ import { MATERIAL_IMPORTS } from '../../../material-imports';
 import { ApiService } from '../../services/api-service';
 import { AuthService } from '../../services/auth-service';
 import { NotificationService } from '../../services/notification.service';
+import { RealtimeEventMessage, RealtimeEventMetadata } from '../../models/realtime-event.model';
+import { RealtimeService } from '../../services/realtime.service';
 
 interface DashboardSummary {
   totalTechnicians: number;
@@ -19,8 +22,8 @@ interface DashboardSummary {
   overdueWorkOrders?: number;
   completedToday?: number;
   highPriorityOpen?: number;
-  activeAssignedWorkOrders?: number;
-  assignedInProgressWorkOrders?: number;
+  activeAssigned?: number;
+  assignedInProgress?: number;
 }
 
 interface DashboardRecentActivityItem {
@@ -1228,7 +1231,9 @@ type DashboardTechnicianWorkloadResponse =
     }
   `]
 })
-export class DashboardComponent implements OnInit {
+export class DashboardComponent implements OnInit, OnDestroy {
+  private readonly destroyRef = inject(DestroyRef);
+
   summary: DashboardSummary | null = null;
   analytics: DashboardAnalytics | null = null;
   technicianWorkload: DashboardTechnicianWorkloadItem[] = [];
@@ -1352,11 +1357,18 @@ export class DashboardComponent implements OnInit {
     private api: ApiService,
     private auth: AuthService,
     private notify: NotificationService,
-    private router: Router
+    private router: Router,
+    private realtime: RealtimeService
   ) {}
 
   ngOnInit(): void {
+    this.bindRealtime();
+    this.realtime.connect();
     this.refreshDashboard();
+  }
+
+  ngOnDestroy(): void {
+    this.realtime.disconnect();
   }
 
   refreshDashboard(): void {
@@ -1381,6 +1393,16 @@ export class DashboardComponent implements OnInit {
     this.loadAnalytics();
     this.loadTechnicianWorkload();
     this.loadSlaSummary();
+  }
+
+  private bindRealtime(): void {
+    this.realtime.dashboardEvents$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((event) => this.handleRealtimeDashboardEvent(event));
+
+    this.realtime.alertEvents$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((event) => this.handleRealtimeAlertEvent(event));
   }
 
   loadRecentActivity(): void {
@@ -1493,6 +1515,476 @@ export class DashboardComponent implements OnInit {
     });
   }
 
+  private handleRealtimeDashboardEvent(event: RealtimeEventMessage): void {
+    if (!event?.type) {
+      return;
+    }
+
+    switch (event.type) {
+      case 'WORK_ORDER_ASSIGNED':
+        this.applyWorkOrderAssignedEvent(event);
+        break;
+
+      case 'WORK_ORDER_COMPLETED':
+        this.applyWorkOrderCompletedEvent(event);
+        break;
+
+      case 'WORK_ORDER_STATUS_CHANGED':
+        this.applyWorkOrderStatusChangedEvent(event);
+        break;
+
+      case 'WORK_ORDER_CREATED':
+        this.applyWorkOrderCreatedEvent(event);
+        break;
+
+      default:
+        break;
+    }
+
+    this.lastUpdated = new Date();
+  }
+
+  private handleRealtimeAlertEvent(event: RealtimeEventMessage): void {
+    if (!event?.type) {
+      return;
+    }
+
+    if (event.type === 'SLA_BREACHED') {
+      this.applySlaBreachedEvent(event);
+      this.lastUpdated = new Date();
+
+      const metadata = this.getRealtimeMetadata(event);
+      const overdueDays = Number(metadata.overdueDays ?? 0);
+      const workOrderRef = this.resolveRealtimeWorkOrderRef(event);
+      const alertMessage = this.toNonBlankString(metadata.activityDescription)
+        ?? this.toNonBlankString(event.message)
+        ?? `${workOrderRef} breached SLA${overdueDays > 0 ? ` (${overdueDays} day${overdueDays === 1 ? '' : 's'} overdue)` : ''}`;
+
+      this.notify.error(alertMessage);
+    }
+  }
+
+  private applyWorkOrderAssignedEvent(event: RealtimeEventMessage): void {
+    const metadata = this.getRealtimeMetadata(event);
+    const previousTechnicianId = this.toNullableNumber(metadata.previousTechnicianId);
+    const previousStatus = this.toNonBlankString(metadata.previousStatus);
+    const isNewAssignment = previousTechnicianId == null;
+
+    if (this.summary) {
+      this.summary = {
+        ...this.summary,
+        openWorkOrders: previousStatus === 'OPEN'
+          ? Math.max(0, (this.summary.openWorkOrders ?? 0) - 1)
+          : (this.summary.openWorkOrders ?? 0),
+        unassignedWorkOrders: isNewAssignment
+          ? Math.max(0, (this.summary.unassignedWorkOrders ?? 0) - 1)
+          : (this.summary.unassignedWorkOrders ?? 0),
+        activeAssigned: isNewAssignment
+          ? (this.summary.activeAssigned ?? 0) + 1
+          : (this.summary.activeAssigned ?? 0)
+      };
+    }
+
+    if (!this.isTechDashboard) {
+      this.updateTechnicianWorkloadForAssignment(event.technicianId ?? null, previousTechnicianId);
+
+      if (previousStatus === 'OPEN') {
+        this.decrementStatusChartBucket('OPEN');
+        this.incrementStatusChartBucket('ASSIGNED');
+      }
+    }
+
+    this.prependRealtimeActivity(
+      this.buildRealtimeActivityItem(
+        event,
+        'ASSIGNED_TECHNICIAN',
+        'Technician assigned',
+        `${this.resolveRealtimeWorkOrderRef(event)} assigned`
+      )
+    );
+  }
+
+  private applyWorkOrderCompletedEvent(event: RealtimeEventMessage): void {
+    if (this.summary) {
+      this.summary = {
+        ...this.summary,
+        inProgressWorkOrders: Math.max(0, (this.summary.inProgressWorkOrders ?? 0) - 1),
+        completedToday: (this.summary.completedToday ?? 0) + 1,
+        activeAssigned: Math.max(0, (this.summary.activeAssigned ?? 0) - 1),
+        assignedInProgress: Math.max(0, (this.summary.assignedInProgress ?? 0) - 1)
+      };
+    }
+
+    if (!this.isTechDashboard) {
+      this.updateTechnicianWorkloadForCompletion(event.technicianId ?? null);
+      this.incrementCompletionTrendToday();
+      this.decrementStatusChartBucket('IN_PROGRESS');
+      this.incrementStatusChartBucket('COMPLETED');
+    }
+
+    this.removeSlaItemByWorkOrderId(event.workOrderId ?? null);
+
+    this.prependRealtimeActivity(
+      this.buildRealtimeActivityItem(
+        event,
+        'COMPLETED',
+        'Work order completed',
+        `${this.resolveRealtimeWorkOrderRef(event)} completed and signed`
+      )
+    );
+  }
+
+  private applyWorkOrderStatusChangedEvent(event: RealtimeEventMessage): void {
+    const eventKey = String(event.metadata?.['eventKey'] ?? '');
+
+    switch (eventKey) {
+      case 'start':
+        if (this.summary) {
+          this.summary = {
+            ...this.summary,
+            inProgressWorkOrders: (this.summary.inProgressWorkOrders ?? 0) + 1,
+            assignedInProgress: (this.summary.assignedInProgress ?? 0) + 1
+          };
+        }
+
+        if (!this.isTechDashboard) {
+          this.updateTechnicianWorkloadForStart(event.technicianId ?? null);
+          this.decrementStatusChartBucket('ASSIGNED');
+          this.incrementStatusChartBucket('IN_PROGRESS');
+        }
+
+        this.prependRealtimeActivity(
+          this.buildRealtimeActivityItem(
+            event,
+            'STARTED',
+            'Work order started',
+            `${this.resolveRealtimeWorkOrderRef(event)} marked In Progress`
+          )
+        );
+        break;
+
+      case 'returned_to_open':
+      case 'reopened':
+        if (this.summary) {
+          this.summary = {
+            ...this.summary,
+            openWorkOrders: (this.summary.openWorkOrders ?? 0) + 1,
+            unassignedWorkOrders: (this.summary.unassignedWorkOrders ?? 0) + 1,
+            inProgressWorkOrders: Math.max(0, (this.summary.inProgressWorkOrders ?? 0) - 1),
+            activeAssigned: Math.max(0, (this.summary.activeAssigned ?? 0) - 1),
+            assignedInProgress: Math.max(0, (this.summary.assignedInProgress ?? 0) - 1)
+          };
+        }
+
+        if (!this.isTechDashboard) {
+          const previousTechId = this.toNullableNumber(event.metadata?.['previousTechnicianId']);
+          this.updateTechnicianWorkloadForReturnToOpen(previousTechId);
+          this.incrementStatusChartBucket('OPEN');
+
+          if (eventKey === 'reopened') {
+            this.decrementStatusChartBucket('COMPLETED');
+          }
+        }
+
+        this.prependRealtimeActivity(
+          this.buildRealtimeActivityItem(
+            event,
+            eventKey === 'reopened' ? 'REOPENED' : 'UNASSIGNED_TECHNICIAN',
+            eventKey === 'reopened' ? 'Work order reopened' : 'Returned for reassignment',
+            eventKey === 'reopened'
+              ? `${this.resolveRealtimeWorkOrderRef(event)} reopened for dispatch`
+              : `${this.resolveRealtimeWorkOrderRef(event)} returned to Open for reassignment`
+          )
+        );
+        break;
+
+      case 'completion_report':
+        this.notify.success(
+          this.toNonBlankString(this.getRealtimeMetadata(event).activityDescription)
+            ?? this.toNonBlankString(event.message)
+            ?? `Structured completion submitted for ${this.resolveRealtimeWorkOrderRef(event)}`
+        );
+        break;
+
+      default:
+        break;
+    }
+  }
+
+  private applyWorkOrderCreatedEvent(event: RealtimeEventMessage): void {
+    if (this.summary) {
+      this.summary = {
+        ...this.summary,
+        totalWorkOrders: (this.summary.totalWorkOrders ?? 0) + 1,
+        openWorkOrders: (this.summary.openWorkOrders ?? 0) + 1
+      };
+    }
+
+    if (!this.isTechDashboard) {
+      this.incrementStatusChartBucket('OPEN');
+    }
+
+    this.prependRealtimeActivity({
+      workOrderId: event.workOrderId ?? null,
+      eventType: 'CREATED',
+      title: 'Work order created',
+      description: `WO-${event.workOrderId ?? 'N/A'} created`,
+      actor: 'SYSTEM',
+      createdAt: event.timestamp ?? new Date().toISOString()
+    });
+  }
+
+  private applySlaBreachedEvent(event: RealtimeEventMessage): void {
+    const workOrderId = event.workOrderId ?? null;
+    const overdueDays = Number(event.metadata?.['overdueDays'] ?? 0);
+
+    if (this.summary) {
+      this.summary = {
+        ...this.summary,
+        overdueWorkOrders: (this.summary.overdueWorkOrders ?? 0) + 1
+      };
+    }
+
+    if (!this.slaSummary || workOrderId == null) {
+      return;
+    }
+
+    const exists = this.slaSummary.overdueItems.some(item => item.workOrderId === workOrderId);
+    if (exists) {
+      return;
+    }
+
+    const newItem = this.buildRealtimeSlaItem(event, overdueDays);
+
+    this.slaSummary = {
+      ...this.slaSummary,
+      overdueCount: (this.slaSummary.overdueCount ?? 0) + 1,
+      overdueItems: [newItem, ...this.slaSummary.overdueItems].slice(0, 5)
+    };
+  }
+
+  private prependRealtimeActivity(item: DashboardRecentActivityItem): void {
+    this.recentActivity = [item, ...this.recentActivity].slice(0, 10);
+  }
+
+  private removeSlaItemByWorkOrderId(workOrderId: number | null): void {
+    if (!this.slaSummary || workOrderId == null) {
+      return;
+    }
+
+    const overdueItems = this.slaSummary.overdueItems.filter(item => item.workOrderId !== workOrderId);
+    const dueTodayItems = this.slaSummary.dueTodayItems.filter(item => item.workOrderId !== workOrderId);
+
+    this.slaSummary = {
+      ...this.slaSummary,
+      overdueCount: overdueItems.length,
+      dueTodayCount: dueTodayItems.length,
+      overdueItems,
+      dueTodayItems
+    };
+  }
+
+  private getRealtimeMetadata(event: RealtimeEventMessage): RealtimeEventMetadata {
+    return event.metadata ?? {};
+  }
+
+  private buildRealtimeActivityItem(
+    event: RealtimeEventMessage,
+    eventType: string,
+    fallbackTitle: string,
+    fallbackDescription: string
+  ): DashboardRecentActivityItem {
+    const metadata = this.getRealtimeMetadata(event);
+
+    return {
+      workOrderId: event.workOrderId ?? null,
+      eventType,
+      title: this.toNonBlankString(metadata.activityTitle) ?? fallbackTitle,
+      description: this.toNonBlankString(metadata.activityDescription)
+        ?? this.toNonBlankString(event.message)
+        ?? fallbackDescription,
+      actor: 'SYSTEM',
+      createdAt: event.timestamp ?? new Date().toISOString()
+    };
+  }
+
+  private buildRealtimeSlaItem(
+    event: RealtimeEventMessage,
+    overdueDays: number
+  ): DashboardSlaWorkOrderItem {
+    const metadata = this.getRealtimeMetadata(event);
+    const workOrderId = event.workOrderId ?? null;
+
+    return {
+      workOrderId,
+      workOrderRef: this.resolveRealtimeWorkOrderRef(event),
+      title: this.toNonBlankString(metadata.title) ?? 'No description',
+      customerName: this.toNonBlankString(metadata.clientName)
+        ?? this.toNonBlankString(metadata.customerName)
+        ?? 'Unknown customer',
+      scheduledDate: this.toNonBlankString(metadata.scheduledDate)
+        ?? event.timestamp
+        ?? new Date().toISOString(),
+      status: this.toNonBlankString(event.status)
+        ?? this.toNonBlankString(metadata.newStatus)
+        ?? 'UNKNOWN',
+      priority: this.toNonBlankString(metadata.priority) ?? 'UNSPECIFIED',
+      assignedTechId: this.toNullableNumber(metadata.assignedTechId ?? event.technicianId),
+      assignedTechName: this.toNonBlankString(metadata.assignedTechName),
+      daysLate: overdueDays
+    };
+  }
+
+  private resolveRealtimeWorkOrderRef(event: RealtimeEventMessage): string {
+    return this.toNonBlankString(this.getRealtimeMetadata(event).workOrderRef)
+      ?? (event.workOrderId != null ? `WO-${event.workOrderId}` : 'Work order');
+  }
+
+  private toNonBlankString(value: unknown): string | null {
+    if (typeof value !== 'string') {
+      return null;
+    }
+
+    const trimmed = value.trim();
+    return trimmed ? trimmed : null;
+  }
+
+  private toNullableNumber(value: unknown): number | null {
+    if (value == null) {
+      return null;
+    }
+
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  private incrementStatusChartBucket(key: string): void {
+    const index = this.analytics?.workOrdersByStatus.findIndex(item => item.key === key) ?? -1;
+    if (index < 0) {
+      return;
+    }
+
+    const labels = [...(this.statusChartData.labels ?? [])];
+    const data = [...this.statusChartData.datasets[0].data];
+    data[index] = Number(data[index] ?? 0) + 1;
+
+    this.statusChartData = {
+      labels,
+      datasets: [{ ...this.statusChartData.datasets[0], data }]
+    };
+  }
+
+  private decrementStatusChartBucket(key: string): void {
+    const index = this.analytics?.workOrdersByStatus.findIndex(item => item.key === key) ?? -1;
+    if (index < 0) {
+      return;
+    }
+
+    const labels = [...(this.statusChartData.labels ?? [])];
+    const data = [...this.statusChartData.datasets[0].data];
+    data[index] = Math.max(0, Number(data[index] ?? 0) - 1);
+
+    this.statusChartData = {
+      labels,
+      datasets: [{ ...this.statusChartData.datasets[0], data }]
+    };
+  }
+
+  private incrementCompletionTrendToday(): void {
+    const labels = [...(this.completionTrendChartData.labels ?? [])];
+    const data = [...this.completionTrendChartData.datasets[0].data];
+
+    if (data.length === 0) {
+      return;
+    }
+
+    const todayIndex = data.length - 1;
+    data[todayIndex] = Number(data[todayIndex] ?? 0) + 1;
+
+    this.completionTrendChartData = {
+      labels,
+      datasets: [{ ...this.completionTrendChartData.datasets[0], data }]
+    };
+  }
+
+  private updateTechnicianWorkloadForAssignment(
+    technicianId: number | null,
+    previousTechnicianId: number | null
+  ): void {
+    if (technicianId == null) {
+      return;
+    }
+
+    this.technicianWorkload = this.technicianWorkload.map(item =>
+      item.technicianId === technicianId && previousTechnicianId !== technicianId
+        ? {
+            ...item,
+            totalAssignedWorkOrders: item.totalAssignedWorkOrders + 1,
+            openAssignedWorkOrders: item.openAssignedWorkOrders + 1
+          }
+        : item.technicianId === previousTechnicianId && previousTechnicianId !== technicianId
+          ? {
+              ...item,
+              openAssignedWorkOrders: Math.max(0, item.openAssignedWorkOrders - 1),
+              totalAssignedWorkOrders: Math.max(0, item.totalAssignedWorkOrders - 1)
+            }
+          : item
+    );
+  }
+
+  private updateTechnicianWorkloadForStart(technicianId: number | null): void {
+    if (technicianId == null) {
+      return;
+    }
+
+    this.technicianWorkload = this.technicianWorkload.map(item =>
+      item.technicianId === technicianId
+        ? {
+            ...item,
+            openAssignedWorkOrders: Math.max(0, item.openAssignedWorkOrders - 1),
+            inProgressAssignedWorkOrders: item.inProgressAssignedWorkOrders + 1
+          }
+        : item
+    );
+  }
+
+  private updateTechnicianWorkloadForCompletion(technicianId: number | null): void {
+    if (technicianId == null) {
+      return;
+    }
+
+    this.technicianWorkload = this.technicianWorkload.map(item =>
+      item.technicianId === technicianId
+        ? {
+            ...item,
+            totalAssignedWorkOrders: Math.max(0, item.totalAssignedWorkOrders - 1),
+            inProgressAssignedWorkOrders: Math.max(0, item.inProgressAssignedWorkOrders - 1),
+            dueTodayAssignedWorkOrders: Math.max(0, item.dueTodayAssignedWorkOrders - 1),
+            overdueAssignedWorkOrders: Math.max(0, item.overdueAssignedWorkOrders - 1)
+          }
+        : item
+    );
+  }
+
+  private updateTechnicianWorkloadForReturnToOpen(previousTechnicianId: number | null): void {
+    if (previousTechnicianId == null) {
+      return;
+    }
+
+    this.technicianWorkload = this.technicianWorkload.map(item =>
+      item.technicianId === previousTechnicianId
+        ? {
+            ...item,
+            totalAssignedWorkOrders: Math.max(0, item.totalAssignedWorkOrders - 1),
+            openAssignedWorkOrders: Math.max(0, item.openAssignedWorkOrders - 1),
+            inProgressAssignedWorkOrders: Math.max(0, item.inProgressAssignedWorkOrders - 1),
+            dueTodayAssignedWorkOrders: Math.max(0, item.dueTodayAssignedWorkOrders - 1),
+            overdueAssignedWorkOrders: Math.max(0, item.overdueAssignedWorkOrders - 1)
+          }
+        : item
+    );
+  }
+
   getActivityIcon(eventType: string): string {
     switch (eventType) {
       case 'CREATED':
@@ -1522,7 +2014,7 @@ export class DashboardComponent implements OnInit {
 
   get dashboardSubtitle(): string {
     if (this.isTechDashboard) {
-      return 'Your assigned workload, due work, and recent activity';
+      return 'Your assigned workload, due work orders, and recent activity';
     }
 
     if (this.auth.isDispatch()) {
@@ -1546,7 +2038,7 @@ export class DashboardComponent implements OnInit {
 
   get slaPanelSubtitle(): string {
     return this.isTechDashboard
-      ? 'Your overdue and due-today work orders requiring attention'
+      ? 'Your overdue and due-today assigned work orders requiring attention'
       : 'Overdue and due-today work orders requiring attention';
   }
 
@@ -1583,11 +2075,11 @@ export class DashboardComponent implements OnInit {
   }
 
   get technicianAssignedActiveCount(): number {
-    return this.summary?.activeAssignedWorkOrders ?? 0;
+    return this.summary?.activeAssigned ?? 0;
   }
 
   get technicianInProgressCount(): number {
-    return this.summary?.assignedInProgressWorkOrders ?? 0;
+    return this.summary?.assignedInProgress ?? 0;
   }
 
   get recentActivityTitle(): string {
