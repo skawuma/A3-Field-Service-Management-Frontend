@@ -12,7 +12,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { WorkorderTimelineComponent } from '../workorders/workorder-timeline.component';
 import { EditWorkOrderDialogComponent } from '../workorders/workorder-edit-dialog.component';
 import { WorkorderCompleteDialogComponent } from '../workorders/workorder-complete-dialog.component';
-import { environment } from '../../environments/environment.development';
+import { environment } from '../../environments/environment';
 import { WorkOrderCompletionReportResponse } from '../core/models/completion-report.model';
 import { WorkorderReturnToOpenDialogComponent } from '../workorders/workorder-return-to-open-dialog.component';
 
