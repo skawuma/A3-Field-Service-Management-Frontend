@@ -1,6 +1,7 @@
-import { AfterViewInit, Component, OnInit, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subscription } from 'rxjs';
 import { MATERIAL_IMPORTS } from '../material-imports';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -14,6 +15,8 @@ import { AssignTechnicianDialogComponent } from './assign-technician-dialog.comp
 import { AddWorkOrderDialogComponent } from './add-workorder-dialog.component';
 import { AuthService } from '../core/services/auth-service';
 import { ActivatedRoute, Router } from '@angular/router';
+import { RealtimeEventMessage } from '../core/models/realtime-event.model';
+import { RealtimeService } from '../core/services/realtime.service';
 import { WorkorderTimelineDialogComponent } from './workorder-timeline-dialog.component';
 import { EditWorkOrderDialogComponent } from './workorder-edit-dialog.component';
 
@@ -218,7 +221,7 @@ interface WorkOrder {
     }
   `]
 })
-export class WorkordersListComponent implements OnInit, AfterViewInit {
+export class WorkordersListComponent implements OnInit, AfterViewInit, OnDestroy {
 
   isTech = false;
   role = '';
@@ -239,6 +242,7 @@ export class WorkordersListComponent implements OnInit, AfterViewInit {
 
   sortBy = 'id,desc';
   loading = false;
+  realtimeSub?: Subscription;
 
   @ViewChild(MatPaginator) paginator!: MatPaginator;
   @ViewChild(MatSort) sort!: MatSort;
@@ -247,6 +251,7 @@ export class WorkordersListComponent implements OnInit, AfterViewInit {
     private api: ApiService,
     private dialog: MatDialog,
     private auth: AuthService,
+    private realtime: RealtimeService,
     private route: ActivatedRoute,
     private router: Router,
     private snackBar: MatSnackBar
@@ -255,6 +260,8 @@ export class WorkordersListComponent implements OnInit, AfterViewInit {
   ngOnInit() {
     this.role = this.auth.getRole() || '';
     this.isTech = this.role === 'TECH';
+    this.bindRealtime();
+    this.realtime.connect();
 
     this.route.queryParamMap.subscribe(params => {
       if (!this.isTech) {
@@ -273,6 +280,15 @@ export class WorkordersListComponent implements OnInit, AfterViewInit {
       this.loadPage(0);
     });
     this.dataSource.paginator = this.paginator;
+  }
+
+  ngOnDestroy() {
+    if (this.realtimeSub) {
+      this.realtimeSub.unsubscribe();
+      this.realtimeSub = undefined;
+    }
+
+    this.realtime.disconnect();
   }
 
   openDetail(w: WorkOrder) {
@@ -327,6 +343,37 @@ openEditDialog(w: WorkOrder) {
         this.loading = false;
       }
     });
+  }
+
+  private bindRealtime() {
+    this.realtimeSub = this.realtime.dashboardEvents$.subscribe((event) => {
+      if (!this.shouldRefreshForRealtimeEvent(event)) {
+        return;
+      }
+
+      this.loadPage(this.page);
+    });
+  }
+
+  private shouldRefreshForRealtimeEvent(event: RealtimeEventMessage): boolean {
+    if (!event?.type || this.loading) {
+      return false;
+    }
+
+    if (event.type === 'WORK_ORDER_CREATED'
+      || event.type === 'WORK_ORDER_ASSIGNED'
+      || event.type === 'WORK_ORDER_COMPLETED') {
+      return true;
+    }
+
+    if (event.type !== 'WORK_ORDER_STATUS_CHANGED') {
+      return false;
+    }
+
+    const eventKey = String(event.metadata?.eventKey ?? '');
+    return eventKey === 'start'
+      || eventKey === 'returned_to_open'
+      || eventKey === 'reopened';
   }
 
   onSearch(e: any) {

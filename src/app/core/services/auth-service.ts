@@ -46,9 +46,9 @@ export class AuthService {
   // LOGOUT
   // ------------------------------------
   logout() {
-    localStorage.removeItem(this.tokenKey);
-    localStorage.removeItem(this.refreshKey);
-    localStorage.removeItem(this.roleKey);
+    this.clearStoredValue(this.tokenKey);
+    this.clearStoredValue(this.refreshKey);
+    this.clearStoredValue(this.roleKey);
   }
 
   refreshSession(): Observable<AuthResponse> {
@@ -95,11 +95,11 @@ export class AuthService {
   // TOKEN GETTERS
   // ------------------------------------
   getToken(): string | null {
-    return localStorage.getItem(this.tokenKey);
+    return this.getStoredValue(this.tokenKey);
   }
 
   getRefreshToken(): string | null {
-    return localStorage.getItem(this.refreshKey);
+    return this.getStoredValue(this.refreshKey);
   }
 
   hasValidAccessToken(): boolean {
@@ -125,7 +125,7 @@ export class AuthService {
       return payload.role;
     }
 
-    return localStorage.getItem(this.roleKey);
+    return this.getStoredValue(this.roleKey);
   }
 
 
@@ -154,10 +154,52 @@ getUserId(): number | null {
 }
 
 private storeSession(response: AuthResponse) {
-  localStorage.setItem(this.tokenKey, response.accessToken);
-  localStorage.setItem(this.refreshKey, response.refreshToken);
-  localStorage.setItem(this.roleKey, response.role);
+  this.setStoredValue(this.tokenKey, response.accessToken);
+  this.setStoredValue(this.refreshKey, response.refreshToken);
+  this.setStoredValue(this.roleKey, response.role);
 }
+
+  private getSessionStorage(): Storage | null {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+
+    return window.sessionStorage;
+  }
+
+  private getLegacyStorage(): Storage | null {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+
+    return window.localStorage;
+  }
+
+  private getStoredValue(key: string): string | null {
+    const sessionValue = this.getSessionStorage()?.getItem(key);
+    if (sessionValue) {
+      return sessionValue;
+    }
+
+    const legacyValue = this.getLegacyStorage()?.getItem(key);
+    if (!legacyValue) {
+      return null;
+    }
+
+    this.getSessionStorage()?.setItem(key, legacyValue);
+    this.getLegacyStorage()?.removeItem(key);
+    return legacyValue;
+  }
+
+  private setStoredValue(key: string, value: string): void {
+    this.getSessionStorage()?.setItem(key, value);
+    this.getLegacyStorage()?.removeItem(key);
+  }
+
+  private clearStoredValue(key: string): void {
+    this.getSessionStorage()?.removeItem(key);
+    this.getLegacyStorage()?.removeItem(key);
+  }
 
   private decodeToken(token: string | null): JwtPayload | null {
     if (!token) {

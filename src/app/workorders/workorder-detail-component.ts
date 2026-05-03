@@ -8,6 +8,8 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { WorkorderReopenDialogComponent } from '../workorders/workorder-reopen-dialog.component';
 import { ApiService } from '../core/services/api-service';
 import { AuthService } from '../core/services/auth-service';
+import { RealtimeEventMessage } from '../core/models/realtime-event.model';
+import { RealtimeService } from '../core/services/realtime.service';
 import { MatDialog } from '@angular/material/dialog';
 import { WorkorderTimelineComponent } from '../workorders/workorder-timeline.component';
 import { EditWorkOrderDialogComponent } from '../workorders/workorder-edit-dialog.component';
@@ -669,6 +671,7 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
   selectedFile: File | null = null;
   uploading = false;
   uploadSub?: Subscription;
+  realtimeSub?: Subscription;
 
   id!: number;
   workorder: any = null;
@@ -688,6 +691,7 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private api: ApiService,
     private auth: AuthService,
+    private realtime: RealtimeService,
     private router: Router,
     private dialog: MatDialog,
     private snackBar: MatSnackBar
@@ -698,6 +702,8 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
     this.role = this.auth.getRole() || '';
     this.isTech = this.role === 'TECH';
 
+    this.bindRealtime();
+    this.realtime.connect();
     this.load();
   }
 
@@ -799,7 +805,7 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
   }
 
   loadCompletionReport() {
-    if (!this.workorder || (this.workorder.status !== 'IN_PROGRESS' && this.workorder.status !== 'COMPLETED')) {
+    if (!this.shouldLoadCompletionReport()) {
       this.completionReport = null;
       return;
     }
@@ -812,6 +818,51 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
         this.completionReport = null;
       }
     });
+  }
+
+  private shouldLoadCompletionReport(): boolean {
+    if (!this.workorder) {
+      return false;
+    }
+
+    return this.workorder.status === 'COMPLETED'
+      || !!this.workorder.completedAt
+      || !!this.workorder.signatureUrl
+      || !!this.workorder.completionNotes;
+  }
+
+  private bindRealtime() {
+    this.realtimeSub = this.realtime.dashboardEvents$.subscribe((event) => {
+      if (!this.shouldReloadForRealtimeEvent(event)) {
+        return;
+      }
+
+      this.load();
+    });
+  }
+
+  private shouldReloadForRealtimeEvent(event: RealtimeEventMessage): boolean {
+    if (!event?.type || event.workOrderId !== this.id) {
+      return false;
+    }
+
+    if (this.action !== null) {
+      return false;
+    }
+
+    if (event.type === 'WORK_ORDER_COMPLETED' || event.type === 'WORK_ORDER_ASSIGNED') {
+      return true;
+    }
+
+    if (event.type !== 'WORK_ORDER_STATUS_CHANGED') {
+      return false;
+    }
+
+    const eventKey = String(event.metadata?.eventKey ?? '');
+    return eventKey === 'start'
+      || eventKey === 'returned_to_open'
+      || eventKey === 'reopened'
+      || eventKey === 'completion_report';
   }
 
   onFileSelected(event: Event) {
@@ -1154,6 +1205,13 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
       this.uploadSub.unsubscribe();
       this.uploadSub = undefined;
     }
+
+    if (this.realtimeSub) {
+      this.realtimeSub.unsubscribe();
+      this.realtimeSub = undefined;
+    }
+
+    this.realtime.disconnect();
 
     if (this.signaturePreviewObjectUrl) {
       URL.revokeObjectURL(this.signaturePreviewObjectUrl);
