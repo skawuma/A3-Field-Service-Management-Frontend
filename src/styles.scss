@@ -101,7 +101,22 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", Arial, sans-serif; }
   color: white !important;
 }
 
-.mat-mdc-snack-bar-container.snackbar-success .mdc-button__label,
-.mat-mdc-snack-bar-container.snackbar-error .mdc-button__label {
+.mat-mdc-snack-bar-container.snackbar-warn .mdc-snackbar__surface {
+  background-color: #f59e0b !important;
+  color: #111827 !important;
+}
+
+.mat-mdc-snack-bar-container.snackbar-info .mdc-snackbar__surface {
+  background-color: #2563eb !important;
   color: white !important;
+}
+
+.mat-mdc-snack-bar-container.snackbar-success .mdc-button__label,
+.mat-mdc-snack-bar-container.snackbar-error .mdc-button__label,
+.mat-mdc-snack-bar-container.snackbar-info .mdc-button__label {
+  color: white !important;
+}
+
+.mat-mdc-snack-bar-container.snackbar-warn .mdc-button__label {
+  color: #111827 !important;
 }

@@ -1,11 +1,10 @@
-import { AfterViewInit, Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, DestroyRef, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { MATERIAL_IMPORTS } from '../material-imports';
 import { MatDialog } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
-
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatTableDataSource } from '@angular/material/table';
 import { MatPaginator } from '@angular/material/paginator';
 import { MatSort } from '@angular/material/sort';
@@ -17,6 +16,7 @@ import { AuthService } from '../core/services/auth-service';
 import { ActivatedRoute, Router } from '@angular/router';
 import { RealtimeEventMessage } from '../core/models/realtime-event.model';
 import { RealtimeService } from '../core/services/realtime.service';
+import { NotificationService } from '../core/services/notification.service';
 import { WorkorderTimelineDialogComponent } from './workorder-timeline-dialog.component';
 import { EditWorkOrderDialogComponent } from './workorder-edit-dialog.component';
 
@@ -191,12 +191,13 @@ interface WorkOrder {
           <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
 
           <!-- ENTIRE ROW CLICKABLE -->
-          <mat-row
-            *matRowDef="let row; columns: displayedColumns"
-            class="hover-row"
-            (click)="openDetail(row)"
-            matRipple>
-          </mat-row>
+      <mat-row
+  *matRowDef="let row; columns: displayedColumns"
+  class="hover-row"
+  [class.updated-row]="recentlyUpdatedWorkOrderId === row.id"
+  (click)="openDetail(row)"
+  matRipple>
+</mat-row>
 
         </mat-table>
       </div>
@@ -216,6 +217,19 @@ interface WorkOrder {
     .hover-row {
       cursor: pointer;
     }
+.updated-row {
+  animation: realtimeFlash 1.2s ease;
+}
+
+@keyframes realtimeFlash {
+  0% {
+    background: #dcfce7;
+  }
+  100% {
+    background: transparent;
+  }
+}
+
     .hover-row:hover {
       background: #f5f5f5;
     }
@@ -243,6 +257,8 @@ export class WorkordersListComponent implements OnInit, AfterViewInit, OnDestroy
   sortBy = 'id,desc';
   loading = false;
   realtimeSub?: Subscription;
+  private readonly destroyRef = inject(DestroyRef);
+recentlyUpdatedWorkOrderId: number | null = null;
 
   @ViewChild(MatPaginator) paginator!: MatPaginator;
   @ViewChild(MatSort) sort!: MatSort;
@@ -254,14 +270,13 @@ export class WorkordersListComponent implements OnInit, AfterViewInit, OnDestroy
     private realtime: RealtimeService,
     private route: ActivatedRoute,
     private router: Router,
-    private snackBar: MatSnackBar
+    private notify: NotificationService
   ) {}
 
   ngOnInit() {
     this.role = this.auth.getRole() || '';
     this.isTech = this.role === 'TECH';
     this.bindRealtime();
-    this.realtime.connect();
 
     this.route.queryParamMap.subscribe(params => {
       if (!this.isTech) {
@@ -287,8 +302,6 @@ export class WorkordersListComponent implements OnInit, AfterViewInit, OnDestroy
       this.realtimeSub.unsubscribe();
       this.realtimeSub = undefined;
     }
-
-    this.realtime.disconnect();
   }
 
   openDetail(w: WorkOrder) {
@@ -345,15 +358,15 @@ openEditDialog(w: WorkOrder) {
     });
   }
 
-  private bindRealtime() {
-    this.realtimeSub = this.realtime.dashboardEvents$.subscribe((event) => {
-      if (!this.shouldRefreshForRealtimeEvent(event)) {
-        return;
-      }
+  // private bindRealtime() {
+  //   this.realtimeSub = this.realtime.dashboardEvents$.subscribe((event) => {
+  //     if (!this.shouldRefreshForRealtimeEvent(event)) {
+  //       return;
+  //     }
 
-      this.loadPage(this.page);
-    });
-  }
+  //     this.loadPage(this.page);
+  //   });
+  // }
 
   private shouldRefreshForRealtimeEvent(event: RealtimeEventMessage): boolean {
     if (!event?.type || this.loading) {
@@ -440,10 +453,136 @@ openEditDialog(w: WorkOrder) {
     return map[p || ''] || 'priority-default';
   }
 
+private bindRealtime(): void {
+  this.realtime.dashboardEvents$
+    .pipe(takeUntilDestroyed(this.destroyRef))
+    .subscribe(event => this.applyWorkOrderRealtimeUpdate(event));
+
+  this.realtime.alertEvents$
+    .pipe(takeUntilDestroyed(this.destroyRef))
+    .subscribe(event => this.applySlaRealtimeUpdate(event));
+}
+
+private applyWorkOrderRealtimeUpdate(event: RealtimeEventMessage): void {
+  if (!event?.workOrderId) {
+    return;
+  }
+
+  switch (event.type) {
+    case 'WORK_ORDER_CREATED':
+      this.upsertWorkOrderFromRealtime(event);
+      this.showInfo(event.metadata?.activityDescription ?? 'Work order created');
+      break;
+
+    case 'WORK_ORDER_ASSIGNED':
+      this.upsertWorkOrderFromRealtime(event);
+      this.showInfo(event.metadata?.activityDescription ?? 'Work order assigned');
+      break;
+
+    case 'WORK_ORDER_COMPLETED':
+    case 'WORK_ORDER_STATUS_CHANGED':
+      this.updateExistingWorkOrderFromRealtime(event);
+      this.showInfo(event.metadata?.activityDescription ?? 'Work order updated');
+      break;
+
+    default:
+      return;
+  }
+
+  this.markRecentlyUpdated(event.workOrderId);
+}
+
+private applySlaRealtimeUpdate(event: RealtimeEventMessage): void {
+  if (!event || event.type !== 'SLA_BREACHED' || !event.workOrderId) {
+    return;
+  }
+
+  this.updateExistingWorkOrderFromRealtime(event);
+
+  const overdueDays = Number(event.metadata?.overdueDays ?? 0);
+  const ref = event.metadata?.workOrderRef ?? `WO-${event.workOrderId}`;
+
+  this.showError(
+    `${ref} is overdue${overdueDays > 0 ? ` by ${overdueDays} day${overdueDays === 1 ? '' : 's'}` : ''}.`
+  );
+
+  this.markRecentlyUpdated(event.workOrderId);
+}
+
+private upsertWorkOrderFromRealtime(event: RealtimeEventMessage): void {
+  const incoming = this.toWorkOrderFromRealtime(event);
+  const exists = this.dataSource.data.some(w => w.id === incoming.id);
+
+  if (exists) {
+    this.dataSource.data = this.dataSource.data.map(w =>
+      w.id === incoming.id ? { ...w, ...incoming } : w
+    );
+    return;
+  }
+
+  this.dataSource.data = [incoming, ...this.dataSource.data];
+  this.totalElements += 1;
+}
+
+private updateExistingWorkOrderFromRealtime(event: RealtimeEventMessage): void {
+  const exists = this.dataSource.data.some(w => w.id === event.workOrderId);
+
+  if (!exists) {
+    return;
+  }
+
+  this.dataSource.data = this.dataSource.data.map(w => {
+    if (w.id !== event.workOrderId) {
+      return w;
+    }
+
+    return {
+      ...w,
+      status: event.status ?? event.metadata?.newStatus ?? w.status,
+      assignedTechId: event.metadata?.assignedTechId ?? event.technicianId ?? w.assignedTechId,
+      assignedTechnicianName: event.metadata?.assignedTechName ?? w.assignedTechnicianName,
+      clientName: event.metadata?.clientName ?? event.metadata?.customerName ?? w.clientName,
+      description: event.metadata?.description ?? event.metadata?.title ?? w.description,
+      scheduledDate: event.metadata?.scheduledDate ?? w.scheduledDate,
+      priority: event.metadata?.priority ?? w.priority
+    };
+  });
+}
+
+private toWorkOrderFromRealtime(event: RealtimeEventMessage): WorkOrder {
+  return {
+    id: event.workOrderId!,
+    clientName: event.metadata?.clientName ?? event.metadata?.customerName ?? 'Unknown customer',
+    address: '',
+    description: event.metadata?.description ?? event.metadata?.title ?? 'No description',
+    status: event.status ?? event.metadata?.newStatus ?? 'OPEN',
+    assignedTechId: event.metadata?.assignedTechId ?? event.technicianId ?? null,
+    assignedTechnicianName: event.metadata?.assignedTechName ?? null,
+    scheduledDate: event.metadata?.scheduledDate ?? null,
+    priority: event.metadata?.priority ?? 'UNSPECIFIED'
+  };
+}
+
+private markRecentlyUpdated(workOrderId: number): void {
+  this.recentlyUpdatedWorkOrderId = workOrderId;
+
+  window.setTimeout(() => {
+    if (this.recentlyUpdatedWorkOrderId === workOrderId) {
+      this.recentlyUpdatedWorkOrderId = null;
+    }
+  }, 1400);
+}
+
+private showInfo(message: string): void {
+  this.notify.info(message);
+}
+
+
+
+
+
+
   private showError(message: string) {
-    this.snackBar.open(message, 'Close', {
-      duration: 4000,
-      panelClass: ['snackbar-error']
-    });
+    this.notify.error(message);
   }
 }

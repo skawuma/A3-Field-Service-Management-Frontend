@@ -17,6 +17,9 @@ import { WorkorderCompleteDialogComponent } from '../workorders/workorder-comple
 import { environment } from '../../environments/environment';
 import { WorkOrderCompletionReportResponse } from '../core/models/completion-report.model';
 import { WorkorderReturnToOpenDialogComponent } from '../workorders/workorder-return-to-open-dialog.component';
+import { DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+
 
 interface WorkOrderAttachment {
   id: number;
@@ -663,6 +666,7 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
 })
 export class WorkOrderDetailComponent implements OnInit, OnDestroy {
 
+  private readonly destroyRef = inject(DestroyRef);
   signaturePreviewObjectUrl: string | null = null;
 
   baseUrl = environment.apiUrl;
@@ -703,7 +707,6 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
     this.isTech = this.role === 'TECH';
 
     this.bindRealtime();
-    this.realtime.connect();
     this.load();
   }
 
@@ -831,15 +834,77 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
       || !!this.workorder.completionNotes;
   }
 
-  private bindRealtime() {
-    this.realtimeSub = this.realtime.dashboardEvents$.subscribe((event) => {
-      if (!this.shouldReloadForRealtimeEvent(event)) {
-        return;
-      }
+  // private bindRealtime() {
+  //   this.realtimeSub = this.realtime.dashboardEvents$.subscribe((event) => {
+  //     if (!this.shouldReloadForRealtimeEvent(event)) {
+  //       return;
+  //     }
 
-      this.load();
-    });
+  //     this.load();
+  //   });
+  // }
+
+  private bindRealtime(): void {
+  this.realtime.dashboardEvents$
+    .pipe(takeUntilDestroyed(this.destroyRef))
+    .subscribe(event => this.applyRealtimeUpdate(event));
+
+  this.realtime.alertEvents$
+    .pipe(takeUntilDestroyed(this.destroyRef))
+    .subscribe(event => this.applySlaRealtimeUpdate(event));
+}
+
+private applyRealtimeUpdate(event: RealtimeEventMessage): void {
+  if (!event || !this.workorder || event.workOrderId !== this.workorder.id) {
+    return;
   }
+
+  this.workorder = {
+    ...this.workorder,
+    status: event.status ?? event.metadata?.newStatus ?? this.workorder.status,
+    assignedTechId: event.metadata?.assignedTechId ?? event.technicianId ?? this.workorder.assignedTechId,
+    assignedTechnicianName: event.metadata?.assignedTechName ?? this.workorder.assignedTechnicianName,
+    description: event.metadata?.description ?? event.metadata?.title ?? this.workorder.description,
+    scheduledDate: event.metadata?.scheduledDate ?? this.workorder.scheduledDate,
+    priority: event.metadata?.priority ?? this.workorder.priority,
+    completedAt: event.metadata?.completedAt ?? this.workorder.completedAt
+  };
+
+  this.showInfo(
+    event.metadata?.activityDescription ??
+    `Work order updated → ${this.workorder.status}`
+  );
+}
+
+private applySlaRealtimeUpdate(event: RealtimeEventMessage): void {
+  if (!event || event.type !== 'SLA_BREACHED') {
+    return;
+  }
+
+  if (!this.workorder || event.workOrderId !== this.workorder.id) {
+    return;
+  }
+
+  const overdueDays = Number(event.metadata?.overdueDays ?? 0);
+  const ref = event.metadata?.workOrderRef ?? `WO-${event.workOrderId}`;
+
+  this.showError(
+    `${ref} is overdue${overdueDays > 0 ? ` by ${overdueDays} day${overdueDays === 1 ? '' : 's'}` : ''}`
+  );
+}
+
+private showInfo(message: string): void {
+  this.snackBar.open(message, 'Close', {
+    duration: 3000
+  });
+}
+
+
+
+
+
+
+
 
   private shouldReloadForRealtimeEvent(event: RealtimeEventMessage): boolean {
     if (!event?.type || event.workOrderId !== this.id) {
@@ -1200,6 +1265,11 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
     });
   }
 
+
+
+
+
+
   ngOnDestroy() {
     if (this.uploadSub) {
       this.uploadSub.unsubscribe();
@@ -1210,8 +1280,6 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
       this.realtimeSub.unsubscribe();
       this.realtimeSub = undefined;
     }
-
-    this.realtime.disconnect();
 
     if (this.signaturePreviewObjectUrl) {
       URL.revokeObjectURL(this.signaturePreviewObjectUrl);

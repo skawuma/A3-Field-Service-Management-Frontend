@@ -20,9 +20,11 @@ export class RealtimeService {
 
   private readonly dashboardEventsSubject = new Subject<RealtimeEventMessage>();
   private readonly alertEventsSubject = new Subject<RealtimeEventMessage>();
+  private readonly userNotificationsSubject = new Subject<RealtimeEventMessage>();
 
   readonly dashboardEvents$: Observable<RealtimeEventMessage> = this.dashboardEventsSubject.asObservable();
   readonly alertEvents$: Observable<RealtimeEventMessage> = this.alertEventsSubject.asObservable();
+  readonly userNotifications$: Observable<RealtimeEventMessage> = this.userNotificationsSubject.asObservable();
 
   constructor(
     private auth: AuthService,
@@ -153,28 +155,38 @@ export class RealtimeService {
     }
 
     this.zone.run(() => {
-      if (destination === '/topic/dashboard') {
-        this.dashboardEventsSubject.next(payload);
-        return;
-      }
-
-      if (destination === '/topic/alerts') {
-        this.alertEventsSubject.next(payload);
-      }
-    });
+if (destination === '/topic/dashboard') {
+    this.dashboardEventsSubject.next(payload);
+    return;
   }
 
-  private subscribeToTopics(): void {
-    this.sendFrame('SUBSCRIBE', {
-      id: 'dashboard-events',
-      destination: '/topic/dashboard'
-    });
+  if (destination === '/topic/alerts') {
+    this.alertEventsSubject.next(payload);
+    return;
+  }
 
-    this.sendFrame('SUBSCRIBE', {
-      id: 'dashboard-alerts',
-      destination: '/topic/alerts'
+  if (destination === '/user/queue/notifications') {
+    this.userNotificationsSubject.next(payload);
+  }
     });
   }
+private subscribeToTopics(): void {
+  this.sendFrame('SUBSCRIBE', {
+    id: 'dashboard-events',
+    destination: '/topic/dashboard'
+  });
+
+  this.sendFrame('SUBSCRIBE', {
+    id: 'dashboard-alerts',
+    destination: '/topic/alerts'
+  });
+
+  this.sendFrame('SUBSCRIBE', {
+    id: 'user-notifications',
+    destination: '/user/queue/notifications'
+  });
+}
+ 
 
   private sendFrame(command: string, headers: Record<string, string> = {}, body = ''): void {
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {

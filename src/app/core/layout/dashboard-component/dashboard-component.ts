@@ -1363,13 +1363,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.bindRealtime();
-    this.realtime.connect();
     this.refreshDashboard();
   }
 
-  ngOnDestroy(): void {
-    this.realtime.disconnect();
-  }
+  ngOnDestroy(): void {}
 
   refreshDashboard(): void {
     this.recentActivity = [];

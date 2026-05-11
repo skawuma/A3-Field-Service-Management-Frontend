@@ -20,12 +20,22 @@ export interface RealtimeEventMetadata {
   faTag?: string | null;
   activityTitle?: string;
   activityDescription?: string;
+  notificationTitle?: string;
+  notificationMessage?: string;
   statusLabel?: string;
   completedAt?: string | null;
 }
 
+export type RealtimeEventType =
+  | 'WORK_ORDER_CREATED'
+  | 'WORK_ORDER_ASSIGNED'
+  | 'WORK_ORDER_STATUS_CHANGED'
+  | 'WORK_ORDER_COMPLETED'
+  | 'SLA_BREACHED'
+  | 'ALERT_CREATED';
+
 export interface RealtimeEventMessage {
-  type: string;
+  type: RealtimeEventType;
   message: string;
   workOrderId: number | null;
   technicianId: number | null;

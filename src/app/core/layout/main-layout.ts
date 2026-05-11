@@ -1,9 +1,12 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, DestroyRef, OnDestroy, OnInit, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterOutlet, RouterLink, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { SessionTimeoutService } from '../services/session-timeout.service';
 import { MATERIAL_IMPORTS } from '../../material-imports';
 import { AuthService } from '../services/auth-service';
+import { NotificationService } from '../services/notification.service';
+import { RealtimeService } from '../services/realtime.service';
 
 @Component({
   selector: 'app-main-layout',
@@ -25,12 +28,12 @@ import { AuthService } from '../services/auth-service';
         <mat-nav-list>
 
           <!-- Dashboard: ADMIN + DISPATCH only -->
-    <div *ngIf="isAdmin || isDispatch">
+    <div *ngIf="isAdmin || isDispatch ||isTech">
   <a mat-list-item routerLink="/dashboard">
     <mat-icon>dashboard</mat-icon>
     <span>Dashboard</span>
   </a>
-</div>
+     </div>
 
           <!-- Technicians: ADMIN only -->
           <a
@@ -93,7 +96,7 @@ import { AuthService } from '../services/auth-service';
       </mat-sidenav-content>
     </mat-sidenav-container>
   `,
-styles: [`
+  styles: [`
     /* unchanged styles from your file */
     .app-container { height: 100vh; }
     .app-sidenav {
@@ -153,6 +156,7 @@ styles: [`
   `]
 })
 export class MainLayoutComponent implements OnInit, OnDestroy {
+  private readonly destroyRef = inject(DestroyRef);
 
   role: string | null = null;
   userEmail: string | null = null;
@@ -167,8 +171,10 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
   constructor(
     private sessionTimeoutService: SessionTimeoutService,
     private auth: AuthService,
-    private router: Router
-  ) {}
+    private router: Router,
+    private realtime: RealtimeService,
+    private notify: NotificationService
+  ) { }
 
   ngOnInit() {
     this.role = this.auth.getRole();
@@ -183,7 +189,26 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
     this.userInitials = this.getInitials(this.displayName);
     this.roleClass = this.getRoleClass(this.role);
     this.sessionTimeoutService.startWatching();
+    this.bindUserNotifications();
+    this.realtime.connect();
 
+  }
+
+  private bindUserNotifications(): void {
+    this.realtime.userNotifications$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(event => {
+        if (!event) {
+          return;
+        }
+
+        const message = event.metadata?.notificationMessage
+          ?? event.metadata?.activityDescription
+          ?? event.message
+          ?? 'New realtime notification received';
+
+        this.notify.info(message);
+      });
   }
 
 
@@ -222,13 +247,15 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
   }
 
   onLogout() {
+    this.realtime.disconnect();
     this.auth.logout();
     this.router.navigate(['/auth/login']);
   }
 
 
 
-ngOnDestroy(): void {
-  this.sessionTimeoutService.stopWatching();
-}
+  ngOnDestroy(): void {
+    this.sessionTimeoutService.stopWatching();
+    this.realtime.disconnect();
+  }
 }

@@ -186,6 +186,78 @@ The visual diagrams in the root README connect to this frontend in three practic
 - future-state architecture: even if backend services split later, the frontend can still present one consistent workflow and dashboard experience
 - realtime business flow: assignment updates, completions, and SLA changes are surfaced here as refreshed dashboards, status updates, and technician-facing actions
 
+## Sprint 8 Realtime Experience
+
+Sprint 8 adds a shared realtime layer to the Angular application.
+
+The app connects once from the authenticated main layout, then feature screens subscribe to the event streams they need:
+
+- dashboard events from `/topic/dashboard`
+- SLA alerts from `/topic/alerts`
+- personal technician notifications from `/user/queue/notifications`
+
+```mermaid
+flowchart TB
+    L[Main Layout] --> RT[RealtimeService]
+    RT --> WS[WebSocket STOMP connection]
+
+    WS --> DASH[/topic/dashboard/]
+    WS --> ALERTS[/topic/alerts/]
+    WS --> USER[/user/queue/notifications/]
+
+    DASH --> D[Dashboard]
+    DASH --> WL[Work Orders List]
+    DASH --> WD[Work Order Detail]
+    ALERTS --> TOAST[SLA Alert Toasts]
+    USER --> N[Personal Technician Toasts]
+```
+
+### Dashboard Realtime Behavior
+
+Dashboard subscriptions update:
+
+- KPI and SLA card pressure
+- recent activity
+- analytics and workload snapshots
+- SLA breach alert routing
+
+### Work Orders List Realtime Behavior
+
+The list responds to:
+
+- new work order creation
+- technician assignment
+- status changes
+- completion events
+- return-to-open and reopen events
+
+Rows update in place and flash briefly so dispatchers can spot live changes.
+
+### Work Order Detail Realtime Behavior
+
+The detail page updates visible fields without a manual refresh:
+
+- status
+- assigned technician
+- priority and scheduled date metadata
+- completion timestamp
+- SLA breach alerts
+
+```mermaid
+sequenceDiagram
+    participant Backend as Spring Backend
+    participant RT as RealtimeService
+    participant List as Work Orders List
+    participant Detail as Work Order Detail
+    participant Toast as Notification Service
+
+    Backend-->>RT: WORK_ORDER_ASSIGNED / STATUS_CHANGED / COMPLETED
+    RT-->>List: Update matching row and flash
+    RT-->>Detail: Merge matching work order metadata
+    Backend-->>RT: SLA_BREACHED
+    RT-->>Toast: Show operational alert
+```
+
 ## Workflow Guards In The UI
 
 The frontend mirrors backend rules so users are guided away from invalid actions before they even click.
@@ -302,7 +374,7 @@ This frontend is aiming for a practical field-service feel:
 
 The current design leaves room for:
 
-- real-time dashboard refresh
+- durable notification history
 - technician-specific recent activity feeds
 - dashboard click-through filters
 - more advanced workload balancing views
