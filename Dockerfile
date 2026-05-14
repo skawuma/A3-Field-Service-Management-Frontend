@@ -2,10 +2,10 @@ FROM node:20-alpine AS build
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 
 COPY . .
-RUN npm run build
+RUN npm run build -- --configuration production
 
 FROM nginx:alpine
 
@@ -15,3 +15,6 @@ RUN find /usr/share/nginx/html -type d -exec chmod 755 {} \; \
     && find /usr/share/nginx/html -type f -exec chmod 644 {} \;
 
 EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -qO- http://localhost/healthz || exit 1

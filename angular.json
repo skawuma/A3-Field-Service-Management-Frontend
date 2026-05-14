@@ -31,7 +31,8 @@
     ],
     "styles": [
       "src/styles.scss"
-    ]
+    ],
+    "outputMode": "static"
   },
   "configurations": {
     "production": {
@@ -40,6 +41,9 @@
         "styles": true,
         "fonts": false
       },
+      "extractLicenses": true,
+      "sourceMap": false,
+      "namedChunks": false,
       "budgets": [
         {
           "type": "initial",

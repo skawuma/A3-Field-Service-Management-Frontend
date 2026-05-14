@@ -4,3 +4,5 @@ dist
 .git
 .idea
 .env
+npm-debug.log
+coverage
