@@ -4,10 +4,12 @@ on:
   push:
     branches:
       - main
+      - sprint-9-production-devops
       - sprint-8-realtime-layer
   pull_request:
     branches:
       - main
+      - sprint-9-production-devops
       - sprint-8-realtime-layer
   workflow_dispatch:
 
