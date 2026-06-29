@@ -330,6 +330,17 @@ Workload intensity can reflect:
 
 That makes the dashboard more than informative. It starts becoming operationally predictive.
 
+## Sprint 10 Public Demo Experience
+
+The production demo build sets `environment.demoMode` to `true`. This enables:
+
+- a global banner explaining that the site contains fictional portfolio data;
+- public Admin, Dispatcher, and Technician credentials on the login page;
+- one-click account selection that fills the login form;
+- role descriptions that help visitors choose the workflow they want to explore.
+
+Development keeps `demoMode` disabled by default. The public passwords are intentionally visible demo credentials and are not production secrets.
+
 ## Local Development
 
 ### Start The Angular App

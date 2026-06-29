@@ -98,7 +98,8 @@ import { RealtimeService } from '../services/realtime.service';
   `,
   styles: [`
     /* unchanged styles from your file */
-    .app-container { height: 100vh; }
+    :host { display: block; height: 100%; min-height: 0; }
+    .app-container { height: 100%; }
     .app-sidenav {
       width: 240px;
       padding-top: 8px;

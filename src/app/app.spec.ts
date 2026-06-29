@@ -14,10 +14,11 @@ describe('App', () => {
     expect(app).toBeTruthy();
   });
 
-  it('should render title', () => {
+  it('should render the public demo banner in the production build', () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('Hello, a3-fsm-frontend');
+    expect(compiled.querySelector('[data-testid="demo-banner"]')?.textContent)
+      .toContain('public portfolio demo');
   });
 });
