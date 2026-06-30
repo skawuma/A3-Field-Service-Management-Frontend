@@ -7,16 +7,21 @@ import { MATERIAL_IMPORTS } from '../../material-imports';
 import { AuthService } from '../services/auth-service';
 import { NotificationService } from '../services/notification.service';
 import { RealtimeService } from '../services/realtime.service';
+import { BreakpointObserver } from '@angular/cdk/layout';
 
 @Component({
   selector: 'app-main-layout',
   standalone: true,
   imports: [CommonModule, RouterOutlet, RouterLink, ...MATERIAL_IMPORTS],
   template: `
-    <mat-sidenav-container class="app-container">
+    <mat-sidenav-container class="app-container" autosize>
 
       <!-- SIDEBAR -->
-      <mat-sidenav mode="side" opened class="app-sidenav">
+      <mat-sidenav
+        #sidenav
+        [mode]="isMobile ? 'over' : 'side'"
+        [opened]="!isMobile"
+        class="app-sidenav">
 
         <div class="logo">
           <div class="logo-text">A3 FSM</div>
@@ -29,7 +34,7 @@ import { RealtimeService } from '../services/realtime.service';
 
           <!-- Dashboard: ADMIN + DISPATCH only -->
     <div *ngIf="isAdmin || isDispatch ||isTech">
-  <a mat-list-item routerLink="/dashboard">
+  <a mat-list-item routerLink="/dashboard" (click)="isMobile ? sidenav.close() : null">
     <mat-icon>dashboard</mat-icon>
     <span>Dashboard</span>
   </a>
@@ -39,13 +44,14 @@ import { RealtimeService } from '../services/realtime.service';
           <a
             mat-list-item
             routerLink="/technicians"
+            (click)="isMobile ? sidenav.close() : null"
             *ngIf="isAdmin">
             <mat-icon>engineering</mat-icon>
             <span>Technicians</span>
           </a>
 
           <!-- Work Orders: ALL ROLES -->
-          <a mat-list-item routerLink="/workorders">
+          <a mat-list-item routerLink="/workorders" (click)="isMobile ? sidenav.close() : null">
             <mat-icon>assignment</mat-icon>
             <span>Work Orders</span>
           </a>
@@ -57,7 +63,19 @@ import { RealtimeService } from '../services/realtime.service';
       <mat-sidenav-content>
         <mat-toolbar color="primary" class="app-toolbar">
 
-          <span class="toolbar-title">A3 Field Service Management</span>
+          <button
+            *ngIf="isMobile"
+            mat-icon-button
+            type="button"
+            class="mobile-menu-button"
+            aria-label="Open navigation menu"
+            (click)="sidenav.toggle()">
+            <mat-icon>menu</mat-icon>
+          </button>
+
+          <span class="toolbar-title">
+            {{ isMobile ? 'A3 FSM' : 'A3 Field Service Management' }}
+          </span>
 
           <!-- USER INFO -->
           <div class="user-info" *ngIf="userEmail">
@@ -98,8 +116,8 @@ import { RealtimeService } from '../services/realtime.service';
   `,
   styles: [`
     /* unchanged styles from your file */
-    :host { display: block; height: 100%; min-height: 0; }
-    .app-container { height: 100%; }
+    :host { display: block; height: 100%; min-height: 0; min-width: 0; }
+    .app-container { height: 100%; max-width: 100%; min-width: 0; overflow: hidden; }
     .app-sidenav {
       width: 240px;
       padding-top: 8px;
@@ -113,10 +131,20 @@ import { RealtimeService } from '../services/realtime.service';
 
     .app-toolbar {
       position: sticky; top: 0; z-index: 10;
-      display: flex; align-items: center;
+      display: flex; align-items: center; gap: 4px; min-width: 0;
     }
-    .toolbar-title { flex: 1; font-size: 18px; font-weight: 600; }
-    .app-content { padding: 16px; }
+    .toolbar-title {
+      flex: 1;
+      font-size: 18px;
+      font-weight: 600;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .app-content { box-sizing: border-box; min-width: 0; padding: 16px; }
+
+    mat-sidenav-content { min-width: 0; overflow-x: hidden; }
 
     .user-info { display: flex; align-items: center; gap: 12px; }
     .user-email { font-size: 13px; }
@@ -154,6 +182,33 @@ import { RealtimeService } from '../services/realtime.service';
       display: flex; flex-direction: column; align-items: center;
       border-bottom: 1px solid #e5e7eb;
     }
+
+    @media (max-width: 767px) {
+      .app-sidenav {
+        max-width: 280px;
+        width: 82vw;
+      }
+
+      .app-toolbar {
+        padding: 0 8px;
+      }
+
+      .toolbar-title {
+        font-size: 16px;
+      }
+
+      .user-text {
+        display: none;
+      }
+
+      .user-info {
+        gap: 0;
+      }
+
+      .app-content {
+        padding: 12px;
+      }
+    }
   `]
 })
 export class MainLayoutComponent implements OnInit, OnDestroy {
@@ -168,16 +223,25 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
   isAdmin = false;
   isDispatch = false;
   isTech = false;
+  isMobile = false;
 
   constructor(
     private sessionTimeoutService: SessionTimeoutService,
     private auth: AuthService,
     private router: Router,
     private realtime: RealtimeService,
-    private notify: NotificationService
+    private notify: NotificationService,
+    private breakpointObserver: BreakpointObserver
   ) { }
 
   ngOnInit() {
+    this.breakpointObserver
+      .observe('(max-width: 767px)')
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(({ matches }) => {
+        this.isMobile = matches;
+      });
+
     this.role = this.auth.getRole();
 
     this.isAdmin = this.role === 'ADMIN';
@@ -215,20 +279,17 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
 
 
   private decodeUserInfoFromToken(): { email: string | null; displayName: string } {
-    const token = this.auth.getToken();
-    if (!token) return { email: null, displayName: '' };
-
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return {
-        email: payload.sub ?? null,
-        displayName: payload.firstName && payload.lastName
-          ? `${payload.firstName} ${payload.lastName}`
-          : ''
-      };
-    } catch {
+    const payload = this.auth.getTokenPayload();
+    if (!payload) {
       return { email: null, displayName: '' };
     }
+
+    return {
+      email: payload.sub ?? null,
+      displayName: payload.firstName && payload.lastName
+        ? `${payload.firstName} ${payload.lastName}`
+        : ''
+    };
   }
 
   private getRoleClass(role: string | null): string {

@@ -32,6 +32,8 @@ import { DEMO_ACCOUNTS, DemoAccount } from '../../core/demo/demo-config';
                 name="email"
                 type="email"
                 autocomplete="username"
+                autocapitalize="none"
+                spellcheck="false"
                 required>
             </mat-form-field>
 
@@ -43,11 +45,17 @@ import { DEMO_ACCOUNTS, DemoAccount } from '../../core/demo/demo-config';
                 name="password"
                 type="password"
                 autocomplete="current-password"
+                autocapitalize="none"
                 required>
             </mat-form-field>
 
-            <button mat-raised-button color="primary" type="submit" class="full-width sign-in-button">
-              Sign In
+            <button
+              mat-raised-button
+              color="primary"
+              type="submit"
+              class="full-width sign-in-button"
+              [disabled]="submitting">
+              {{ submitting ? 'Signing in…' : 'Sign In' }}
             </button>
           </form>
         </mat-card>
@@ -62,8 +70,8 @@ import { DEMO_ACCOUNTS, DemoAccount } from '../../core/demo/demo-config';
           </div>
 
           <p class="credentials-intro" id="demo-credentials-help">
-            Visitors can use any public account below. Select <strong>Fill login</strong>, then
-            choose <strong>Sign In</strong>. Demo changes may be reset periodically.
+            Visitors can use any public account below. Choose a role to sign in immediately.
+            Demo changes may be reset periodically.
           </p>
 
           <div class="credentials-table-wrap">
@@ -89,8 +97,9 @@ import { DEMO_ACCOUNTS, DemoAccount } from '../../core/demo/demo-config';
                       mat-stroked-button
                       color="primary"
                       type="button"
-                      (click)="useDemoAccount(account)">
-                      Fill login
+                      [disabled]="submitting"
+                      (click)="loginWithDemoAccount(account)">
+                      Sign in as {{ account.role }}
                     </button>
                   </td>
                 </tr>
@@ -370,6 +379,7 @@ export class LoginComponent {
   password = '';
   readonly demoMode = environment.demoMode;
   readonly demoAccounts = DEMO_ACCOUNTS;
+  submitting = false;
 
   constructor(
     private route: ActivatedRoute,
@@ -378,9 +388,10 @@ export class LoginComponent {
       private snackBar: MatSnackBar
   ) {}
 
-  useDemoAccount(account: DemoAccount): void {
+  loginWithDemoAccount(account: DemoAccount): void {
     this.email = account.email;
     this.password = account.password;
+    this.onSubmit();
   }
 
   ngOnInit(): void {
@@ -394,14 +405,23 @@ export class LoginComponent {
   }
 
   onSubmit() {
+    if (this.submitting) {
+      return;
+    }
+
+    this.submitting = true;
     const loginPayload = {
-      email: this.email,
+      email: this.email.trim(),
       password: this.password
     };
 
     this.auth.login(loginPayload).subscribe({
-      next: () => this.router.navigate(['/dashboard']),
+      next: () => {
+        this.submitting = false;
+        this.router.navigate(['/dashboard']);
+      },
       error: (err) => {
+        this.submitting = false;
         const message = err.error?.message || 'Login failed. Please check your email and password.';
         this.snackBar.open(message, 'Close', {
           duration: 4000

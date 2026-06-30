@@ -699,6 +699,9 @@ type DashboardTechnicianWorkloadResponse =
       display: flex;
       flex-direction: column;
       gap: 24px;
+      max-width: 100%;
+      min-width: 0;
+      overflow-x: hidden;
     }
 
     .header-row {
@@ -738,6 +741,7 @@ type DashboardTechnicianWorkloadResponse =
       display: grid;
       gap: 20px;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      min-width: 0;
     }
 
     .stat-card {
@@ -788,16 +792,19 @@ type DashboardTechnicianWorkloadResponse =
       display: grid;
       gap: 20px;
       grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      min-width: 0;
     }
 
     .analytics-grid {
       display: grid;
       gap: 20px;
       grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      min-width: 0;
     }
 
     .panel-card {
       border-radius: 16px;
+      min-width: 0;
       padding: 16px;
     }
 
@@ -1204,6 +1211,18 @@ type DashboardTechnicianWorkloadResponse =
     .urgent { background: linear-gradient(135deg, #fb8c00, #ffb300); }
 
     @media (max-width: 768px) {
+      .dashboard-page {
+        gap: 16px;
+      }
+
+      .header-row {
+        align-items: stretch;
+      }
+
+      .header-row > button {
+        width: 100%;
+      }
+
       .title {
         font-size: 24px;
       }
@@ -1218,6 +1237,13 @@ type DashboardTechnicianWorkloadResponse =
       .sla-columns,
       .heatmap-grid {
         grid-template-columns: 1fr;
+      }
+
+      .stat-card {
+        box-sizing: border-box;
+        min-height: 128px;
+        padding: 20px;
+        width: 100%;
       }
 
       .heatmap-header {

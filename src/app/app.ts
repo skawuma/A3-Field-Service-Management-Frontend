@@ -19,7 +19,10 @@ import { DemoBannerComponent } from './core/demo/demo-banner.component';
     .app-shell {
       display: block;
       height: 100vh;
+      height: 100dvh;
       min-height: 0;
+      min-width: 0;
+      overflow: hidden;
     }
 
     .app-shell {
@@ -30,6 +33,9 @@ import { DemoBannerComponent } from './core/demo/demo-banner.component';
     .route-shell {
       flex: 1 1 auto;
       min-height: 0;
+      min-width: 0;
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
     }
   `]
 })

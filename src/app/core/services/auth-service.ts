@@ -19,6 +19,9 @@ interface JwtPayload {
   exp?: number;
   id?: number | string;
   role?: string;
+  sub?: string;
+  firstName?: string;
+  lastName?: string;
   [key: string]: unknown;
 }
 
@@ -28,6 +31,7 @@ export class AuthService {
   private readonly tokenKey = 'a3fsm_token';
   private readonly refreshKey = 'a3fsm_refresh';
   private readonly roleKey = 'a3fsm_role';
+  private readonly memoryStorage = new Map<string, string>();
   private refreshRequest$?: Observable<AuthResponse>;
 
   constructor(private http: HttpClient) {}
@@ -128,6 +132,10 @@ export class AuthService {
     return this.getStoredValue(this.roleKey);
   }
 
+  getTokenPayload(): JwtPayload | null {
+    return this.decodeToken(this.getToken());
+  }
+
 
   isAdmin(): boolean {
     return this.getRole() === 'ADMIN';
@@ -164,7 +172,11 @@ private storeSession(response: AuthResponse) {
       return null;
     }
 
-    return window.sessionStorage;
+    try {
+      return window.sessionStorage;
+    } catch {
+      return null;
+    }
   }
 
   private getLegacyStorage(): Storage | null {
@@ -172,33 +184,80 @@ private storeSession(response: AuthResponse) {
       return null;
     }
 
-    return window.localStorage;
+    try {
+      return window.localStorage;
+    } catch {
+      return null;
+    }
   }
 
   private getStoredValue(key: string): string | null {
-    const sessionValue = this.getSessionStorage()?.getItem(key);
+    const sessionValue = this.readStoredValue(this.getSessionStorage(), key);
     if (sessionValue) {
+      this.memoryStorage.set(key, sessionValue);
       return sessionValue;
     }
 
-    const legacyValue = this.getLegacyStorage()?.getItem(key);
-    if (!legacyValue) {
-      return null;
+    const legacyStorage = this.getLegacyStorage();
+    const legacyValue = this.readStoredValue(legacyStorage, key);
+    if (legacyValue) {
+      this.memoryStorage.set(key, legacyValue);
+
+      if (this.writeStoredValue(this.getSessionStorage(), key, legacyValue)) {
+        this.removeStoredValue(legacyStorage, key);
+      }
+
+      return legacyValue;
     }
 
-    this.getSessionStorage()?.setItem(key, legacyValue);
-    this.getLegacyStorage()?.removeItem(key);
-    return legacyValue;
+    return this.memoryStorage.get(key) ?? null;
   }
 
   private setStoredValue(key: string, value: string): void {
-    this.getSessionStorage()?.setItem(key, value);
-    this.getLegacyStorage()?.removeItem(key);
+    this.memoryStorage.set(key, value);
+
+    const legacyStorage = this.getLegacyStorage();
+    if (this.writeStoredValue(this.getSessionStorage(), key, value)) {
+      this.removeStoredValue(legacyStorage, key);
+      return;
+    }
+
+    this.writeStoredValue(legacyStorage, key, value);
   }
 
   private clearStoredValue(key: string): void {
-    this.getSessionStorage()?.removeItem(key);
-    this.getLegacyStorage()?.removeItem(key);
+    this.memoryStorage.delete(key);
+    this.removeStoredValue(this.getSessionStorage(), key);
+    this.removeStoredValue(this.getLegacyStorage(), key);
+  }
+
+  private readStoredValue(storage: Storage | null, key: string): string | null {
+    try {
+      return storage?.getItem(key) ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  private writeStoredValue(storage: Storage | null, key: string, value: string): boolean {
+    if (!storage) {
+      return false;
+    }
+
+    try {
+      storage.setItem(key, value);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private removeStoredValue(storage: Storage | null, key: string): void {
+    try {
+      storage?.removeItem(key);
+    } catch {
+      // In-memory state is still cleared when browser storage is unavailable.
+    }
   }
 
   private decodeToken(token: string | null): JwtPayload | null {
@@ -207,7 +266,18 @@ private storeSession(response: AuthResponse) {
     }
 
     try {
-      return JSON.parse(atob(token.split('.')[1])) as JwtPayload;
+      const payload = token.split('.')[1];
+      if (!payload) {
+        return null;
+      }
+
+      const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+      const binary = atob(padded);
+      const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
+      const decoded = new TextDecoder().decode(bytes);
+
+      return JSON.parse(decoded) as JwtPayload;
     } catch {
       return null;
     }
