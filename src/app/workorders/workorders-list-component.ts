@@ -92,6 +92,9 @@ interface WorkOrder {
             <mat-option value="">All</mat-option>
             <mat-option value="OPEN">Open</mat-option>
             <mat-option value="ASSIGNED">Assigned</mat-option>
+            <mat-option value="EN_ROUTE">En Route</mat-option>
+            <mat-option value="ARRIVED">Arrived</mat-option>
+            <mat-option value="WORK_STARTED">Work Started</mat-option>
             <mat-option value="IN_PROGRESS">In Progress</mat-option>
             <mat-option value="COMPLETED">Completed</mat-option>
             <mat-option value="CANCELLED">Cancelled</mat-option>
@@ -385,6 +388,9 @@ openEditDialog(w: WorkOrder) {
 
     const eventKey = String(event.metadata?.eventKey ?? '');
     return eventKey === 'start'
+      || eventKey === 'start_travel'
+      || eventKey === 'arrive_onsite'
+      || eventKey === 'start_work'
       || eventKey === 'returned_to_open'
       || eventKey === 'reopened';
   }
@@ -436,6 +442,9 @@ openEditDialog(w: WorkOrder) {
     const map: any = {
       OPEN: 'status-open',
       ASSIGNED: 'status-assigned',
+      EN_ROUTE: 'status-in-progress',
+      ARRIVED: 'status-in-progress',
+      WORK_STARTED: 'status-in-progress',
       IN_PROGRESS: 'status-in-progress',
       COMPLETED: 'status-completed',
       CANCELLED: 'status-cancelled'
@@ -493,18 +502,20 @@ private applyWorkOrderRealtimeUpdate(event: RealtimeEventMessage): void {
 }
 
 private applySlaRealtimeUpdate(event: RealtimeEventMessage): void {
-  if (!event || event.type !== 'SLA_BREACHED' || !event.workOrderId) {
+  if (!event || (event.type !== 'SLA_BREACHED' && event.type !== 'SLA_NEAR_BREACH') || !event.workOrderId) {
     return;
   }
 
   this.updateExistingWorkOrderFromRealtime(event);
 
-  const overdueDays = Number(event.metadata?.overdueDays ?? 0);
   const ref = event.metadata?.workOrderRef ?? `WO-${event.workOrderId}`;
 
-  this.showError(
-    `${ref} is overdue${overdueDays > 0 ? ` by ${overdueDays} day${overdueDays === 1 ? '' : 's'}` : ''}.`
-  );
+  if (event.type === 'SLA_NEAR_BREACH') {
+    this.showInfo(`${ref} is near its SLA deadline.`);
+  } else {
+    const breachMinutes = Number(event.metadata?.breachMinutes ?? 0);
+    this.showError(`${ref} breached SLA${breachMinutes > 0 ? ` by ${breachMinutes} minutes` : ''}.`);
+  }
 
   this.markRecentlyUpdated(event.workOrderId);
 }

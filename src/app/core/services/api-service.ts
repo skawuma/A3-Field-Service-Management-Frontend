@@ -101,7 +101,15 @@ getCompletionReport(id: number): Observable<WorkOrderCompletionReportResponse> {
 }
 
 startWorkOrder(id: number): Observable<any> {
-  return this.post(`workorders/${id}/start`, {});
+  return this.patch(`workorders/${id}/start-work`, {});
+}
+
+startTravel(id: number): Observable<any> {
+  return this.patch(`workorders/${id}/start-travel`, {});
+}
+
+arriveOnsite(id: number): Observable<any> {
+  return this.patch(`workorders/${id}/arrive-onsite`, {});
 }
 
 returnWorkOrderToOpen(id: number, body: { reason?: string }): Observable<any> {

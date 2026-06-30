@@ -24,6 +24,11 @@ export interface RealtimeEventMetadata {
   notificationMessage?: string;
   statusLabel?: string;
   completedAt?: string | null;
+  slaDueAt?: string | null;
+  slaBreached?: boolean;
+  breachMinutes?: number;
+  minutesRemaining?: number;
+  actualCompletionMinutes?: number;
 }
 
 export type RealtimeEventType =
@@ -31,7 +36,9 @@ export type RealtimeEventType =
   | 'WORK_ORDER_ASSIGNED'
   | 'WORK_ORDER_STATUS_CHANGED'
   | 'WORK_ORDER_COMPLETED'
+  | 'SLA_NEAR_BREACH'
   | 'SLA_BREACHED'
+  | 'SLA_MET'
   | 'ALERT_CREATED';
 
 export interface RealtimeEventMessage {

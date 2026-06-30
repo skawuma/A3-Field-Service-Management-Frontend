@@ -73,6 +73,27 @@ interface DashboardSlaSummary {
   dueTodayItems: DashboardSlaWorkOrderItem[];
 }
 
+interface DashboardTechnicianSlaPerformance {
+  technicianId: number;
+  technicianName: string;
+  completedCount: number;
+  withinSlaCount: number;
+  breachedCount: number;
+  compliancePercent: number;
+  averageCompletionMinutes: number;
+}
+
+interface DashboardSlaIntelligence {
+  nearBreachCount: number;
+  breachedActiveCount: number;
+  completedWithinSlaCount: number;
+  completedBreachedCount: number;
+  averageTimeToAssignMinutes: number | null;
+  averageTimeToStartMinutes: number | null;
+  averageTimeToCompleteMinutes: number | null;
+  technicianPerformance: DashboardTechnicianSlaPerformance[];
+}
+
 interface DashboardTechnicianWorkloadItem {
   technicianId: number | null;
   technicianName: string;
@@ -265,6 +286,25 @@ type DashboardTechnicianWorkloadResponse =
             <div class="label">My In Progress</div>
           </mat-card>
         </div>
+
+        <div class="sla-intelligence-grid" *ngIf="slaIntelligence">
+          <mat-card class="sla-kpi near"><mat-icon>notifications_active</mat-icon><strong>{{ slaIntelligence.nearBreachCount }}</strong><span>Near Breach</span></mat-card>
+          <mat-card class="sla-kpi breached"><mat-icon>warning</mat-icon><strong>{{ slaIntelligence.breachedActiveCount }}</strong><span>Active Breached</span></mat-card>
+          <mat-card class="sla-kpi met"><mat-icon>verified</mat-icon><strong>{{ slaIntelligence.completedWithinSlaCount }}</strong><span>Completed Within SLA</span></mat-card>
+          <mat-card class="sla-kpi clock"><mat-icon>assignment_turned_in</mat-icon><strong>{{ formatDuration(slaIntelligence.averageTimeToAssignMinutes) }}</strong><span>Avg. Time to Assign</span></mat-card>
+          <mat-card class="sla-kpi clock"><mat-icon>departure_board</mat-icon><strong>{{ formatDuration(slaIntelligence.averageTimeToStartMinutes) }}</strong><span>Avg. Time to Embark</span></mat-card>
+          <mat-card class="sla-kpi clock"><mat-icon>timer</mat-icon><strong>{{ formatDuration(slaIntelligence.averageTimeToCompleteMinutes) }}</strong><span>Avg. Time to Complete</span></mat-card>
+        </div>
+
+        <mat-card class="panel-card" *ngIf="!isTechDashboard && slaIntelligence?.technicianPerformance?.length">
+          <div class="panel-header"><h3>Technician SLA Performance</h3><p class="panel-subtitle">Execution SLA results from completed work orders</p></div>
+          <div class="sla-performance-row" *ngFor="let item of slaIntelligence!.technicianPerformance">
+            <strong>{{ item.technicianName }}</strong>
+            <span>{{ item.compliancePercent }}% compliant</span>
+            <span>{{ item.withinSlaCount }}/{{ item.completedCount }} within SLA</span>
+            <span>{{ formatDuration(item.averageCompletionMinutes) }} average</span>
+          </div>
+        </mat-card>
 
         <div class="details-grid">
           <mat-card class="panel-card">
@@ -739,6 +779,17 @@ type DashboardTechnicianWorkloadResponse =
       gap: 20px;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     }
+
+    .sla-intelligence-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+    .sla-kpi { padding: 18px; display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; align-items: center; border-radius: 14px; }
+    .sla-kpi mat-icon { grid-row: 1 / 3; }
+    .sla-kpi strong { font-size: 22px; color: #0f172a; }
+    .sla-kpi span { font-size: 12px; color: #64748b; }
+    .sla-kpi.near { border-left: 4px solid #f59e0b; }
+    .sla-kpi.breached { border-left: 4px solid #dc2626; }
+    .sla-kpi.met { border-left: 4px solid #16a34a; }
+    .sla-kpi.clock { border-left: 4px solid #0284c7; }
+    .sla-performance-row { display: grid; grid-template-columns: 1.4fr repeat(3, 1fr); gap: 12px; padding: 12px 0; border-bottom: 1px solid #e5e7eb; font-size: 13px; }
 
     .stat-card {
       padding: 24px;
@@ -1253,6 +1304,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   readonly completionTrendChartType: 'line' = 'line';
 
   slaSummary: DashboardSlaSummary | null = null;
+  slaIntelligence: DashboardSlaIntelligence | null = null;
   slaLoading = false;
   slaLoadError = false;
 
@@ -1382,6 +1434,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.loadSummary(true);
       this.loadRecentActivity();
       this.loadSlaSummary();
+      this.loadSlaIntelligence();
       return;
     }
 
@@ -1390,6 +1443,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.loadAnalytics();
     this.loadTechnicianWorkload();
     this.loadSlaSummary();
+    this.loadSlaIntelligence();
   }
 
   private bindRealtime(): void {
@@ -1449,6 +1503,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
         }
       }
     });
+  }
+
+  loadSlaIntelligence(): void {
+    this.api.get<DashboardSlaIntelligence>('dashboard/sla-intelligence').subscribe({
+      next: (res) => this.slaIntelligence = res,
+      error: () => this.notify.error('Failed to load SLA intelligence')
+    });
+  }
+
+  formatDuration(value: number | null | undefined): string {
+    if (value == null) return 'Pending';
+    const hours = Math.floor(value / 60);
+    const minutes = value % 60;
+    return hours ? `${hours}h ${minutes}m` : `${minutes}m`;
   }
 
   loadAnalytics(): void {
@@ -1546,8 +1614,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
       return;
     }
 
+    if (event.type === 'SLA_NEAR_BREACH') {
+      this.loadSlaIntelligence();
+      const message = this.toNonBlankString(event.metadata?.activityDescription)
+        ?? this.toNonBlankString(event.message)
+        ?? `${this.resolveRealtimeWorkOrderRef(event)} is near its SLA deadline`;
+      this.notify.warn(message);
+      return;
+    }
+
     if (event.type === 'SLA_BREACHED') {
-      this.applySlaBreachedEvent(event);
+      if (event.metadata?.overdueDays != null) {
+        this.applySlaBreachedEvent(event);
+      }
+      this.loadSlaIntelligence();
       this.lastUpdated = new Date();
 
       const metadata = this.getRealtimeMetadata(event);
@@ -1636,7 +1716,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     switch (eventKey) {
       case 'start':
-        if (this.summary) {
+      case 'start_travel':
+      case 'arrive_onsite':
+      case 'start_work': {
+        const previousStatus = this.toNonBlankString(event.metadata?.['previousStatus']);
+        const nextStatus = this.toNonBlankString(event.metadata?.['newStatus']) ?? event.status;
+        const executionStatuses = ['EN_ROUTE', 'ARRIVED', 'WORK_STARTED', 'IN_PROGRESS'];
+        const enteredExecution = !executionStatuses.includes(previousStatus ?? '')
+          && executionStatuses.includes(nextStatus ?? '');
+
+        if (this.summary && enteredExecution) {
           this.summary = {
             ...this.summary,
             inProgressWorkOrders: (this.summary.inProgressWorkOrders ?? 0) + 1,
@@ -1645,20 +1734,23 @@ export class DashboardComponent implements OnInit, OnDestroy {
         }
 
         if (!this.isTechDashboard) {
-          this.updateTechnicianWorkloadForStart(event.technicianId ?? null);
-          this.decrementStatusChartBucket('ASSIGNED');
-          this.incrementStatusChartBucket('IN_PROGRESS');
+          if (enteredExecution) {
+            this.updateTechnicianWorkloadForStart(event.technicianId ?? null);
+          }
+          if (previousStatus) this.decrementStatusChartBucket(previousStatus);
+          if (nextStatus) this.incrementStatusChartBucket(nextStatus);
         }
 
         this.prependRealtimeActivity(
           this.buildRealtimeActivityItem(
             event,
-            'STARTED',
-            'Work order started',
-            `${this.resolveRealtimeWorkOrderRef(event)} marked In Progress`
+            eventKey === 'start_travel' ? 'TRAVEL_STARTED' : eventKey === 'arrive_onsite' ? 'ARRIVED_ONSITE' : 'WORK_STARTED',
+            this.toNonBlankString(event.metadata?.['activityTitle']) ?? 'Work order updated',
+            this.toNonBlankString(event.metadata?.['activityDescription']) ?? `${this.resolveRealtimeWorkOrderRef(event)} status updated`
           )
         );
         break;
+      }
 
       case 'returned_to_open':
       case 'reopened':

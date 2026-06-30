@@ -109,6 +109,25 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
         </mat-card-content>
       </mat-card>
 
+      <mat-card class="section-card sla-lifecycle-card" *ngIf="workorder.slaClockStartedAt || workorder.assignedAt">
+        <mat-card-title>SLA Lifecycle</mat-card-title>
+        <mat-card-content>
+          <div class="sla-clock-grid">
+            <div><span>Assigned</span><strong>{{ workorder.assignedAt ? (workorder.assignedAt | date:'short') : 'Pending' }}</strong></div>
+            <div><span>Travel started</span><strong>{{ workorder.enRouteAt ? (workorder.enRouteAt | date:'short') : 'Pending' }}</strong></div>
+            <div><span>Arrived</span><strong>{{ workorder.arrivedAt ? (workorder.arrivedAt | date:'short') : 'Pending' }}</strong></div>
+            <div><span>Work started</span><strong>{{ workorder.workStartedAt ? (workorder.workStartedAt | date:'short') : 'Pending' }}</strong></div>
+            <div><span>Execution due</span><strong>{{ workorder.slaDueAt ? (workorder.slaDueAt | date:'short') : 'Not started' }}</strong></div>
+            <div><span>SLA result</span><strong [class.sla-breach-text]="workorder.slaBreached">{{ slaResultLabel }}</strong></div>
+          </div>
+          <div class="sla-duration-row">
+            <span>Time to assign: {{ formatMinutes(workorder.timeToAssignMinutes) }}</span>
+            <span>Time to embark: {{ formatMinutes(workorder.timeToStartMinutes) }}</span>
+            <span>Time to complete: {{ formatMinutes(workorder.actualCompletionMinutes) }}</span>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
       <!-- DESCRIPTION / NOTES -->
       <mat-card class="section-card">
         <mat-card-title>Technician Notes</mat-card-title>
@@ -147,24 +166,38 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
               </textarea>
             </mat-form-field>
 
-            <div *ngIf="canStartWork" class="start-banner">
+            <div *ngIf="canStartTravel" class="start-banner">
               <mat-icon>play_circle</mat-icon>
               <div>
                 <div class="start-banner-title">Ready to start</div>
                 <div class="start-banner-subtitle">
-                  This work order is assigned to you. Start work when you begin the visit.
+                  This work order is assigned to you. Start travel when you embark for the service location.
                 </div>
               </div>
             </div>
 
             <div class="tech-actions">
               <button
-                *ngIf="canStartWork"
+                *ngIf="canStartTravel"
                 mat-flat-button
                 color="accent"
-                (click)="startWork()"
+                (click)="startTravel()"
                 [disabled]="isBusy">
 
+                <mat-icon *ngIf="action !== 'travel'">directions_car</mat-icon>
+                <mat-spinner *ngIf="action === 'travel'" diameter="18"></mat-spinner>
+                {{ action === 'travel' ? 'Starting travel...' : 'Start Travel' }}
+              </button>
+
+              <button *ngIf="canArriveOnsite" mat-flat-button color="accent"
+                (click)="arriveOnsite()" [disabled]="isBusy">
+                <mat-icon *ngIf="action !== 'arrive'">location_on</mat-icon>
+                <mat-spinner *ngIf="action === 'arrive'" diameter="18"></mat-spinner>
+                {{ action === 'arrive' ? 'Recording...' : 'Arrived Onsite' }}
+              </button>
+
+              <button *ngIf="canStartWork" mat-flat-button color="primary"
+                (click)="startWork()" [disabled]="isBusy">
                 <mat-icon *ngIf="action !== 'start'">play_arrow</mat-icon>
                 <mat-spinner *ngIf="action === 'start'" diameter="18"></mat-spinner>
                 {{ action === 'start' ? 'Starting...' : 'Start Work' }}
@@ -459,6 +492,19 @@ interface WorkOrderAttachmentView extends WorkOrderAttachment {
 
     .section-card { padding: 10px; }
 
+    .sla-lifecycle-card { border-left: 4px solid #0284c7; }
+    .sla-clock-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .sla-clock-grid div { display: flex; flex-direction: column; gap: 3px; }
+    .sla-clock-grid span { color: #64748b; font-size: 12px; }
+    .sla-clock-grid strong { color: #0f172a; font-size: 14px; }
+    .sla-duration-row { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 18px; color: #334155; font-size: 13px; }
+    .sla-breach-text { color: #b91c1c !important; }
+
     .row { display: flex; margin-bottom: 8px; }
     .label { width: 150px; font-weight: 600; }
     .value { flex: 1; }
@@ -685,7 +731,7 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
   isTech = false;
 
   loading = false;
-  action: 'save' | 'start' | 'complete' | 'release' | 'reopen' | null = null;
+  action: 'save' | 'travel' | 'arrive' | 'start' | 'complete' | 'release' | 'reopen' | null = null;
 
   techForm = {
     description: ''
@@ -714,16 +760,26 @@ export class WorkOrderDetailComponent implements OnInit, OnDestroy {
     return this.loading || this.action !== null;
   }
 
+  get canStartTravel(): boolean {
+    return this.isTech
+      && !!this.workorder
+      && this.workorder.status === 'ASSIGNED';
+  }
+
+  get canArriveOnsite(): boolean {
+    return this.isTech && this.workorder?.status === 'EN_ROUTE';
+  }
+
   get canStartWork(): boolean {
     return this.isTech
       && !!this.workorder
-      && (this.workorder.status === 'OPEN' || this.workorder.status === 'ASSIGNED');
+      && (this.workorder.status === 'EN_ROUTE' || this.workorder.status === 'ARRIVED');
   }
 
   get canCompleteWork(): boolean {
     return this.isTech
       && !!this.workorder
-      && this.workorder.status === 'IN_PROGRESS';
+      && (this.workorder.status === 'WORK_STARTED' || this.workorder.status === 'IN_PROGRESS');
   }
 
   get canReturnToOpen(): boolean {
@@ -877,7 +933,7 @@ private applyRealtimeUpdate(event: RealtimeEventMessage): void {
 }
 
 private applySlaRealtimeUpdate(event: RealtimeEventMessage): void {
-  if (!event || event.type !== 'SLA_BREACHED') {
+  if (!event || (event.type !== 'SLA_BREACHED' && event.type !== 'SLA_NEAR_BREACH')) {
     return;
   }
 
@@ -885,12 +941,16 @@ private applySlaRealtimeUpdate(event: RealtimeEventMessage): void {
     return;
   }
 
-  const overdueDays = Number(event.metadata?.overdueDays ?? 0);
   const ref = event.metadata?.workOrderRef ?? `WO-${event.workOrderId}`;
 
-  this.showError(
-    `${ref} is overdue${overdueDays > 0 ? ` by ${overdueDays} day${overdueDays === 1 ? '' : 's'}` : ''}`
-  );
+  if (event.type === 'SLA_NEAR_BREACH') {
+    const minutes = Number(event.metadata?.minutesRemaining ?? 0);
+    this.showInfo(`${ref} is near SLA breach${minutes > 0 ? ` (${minutes} minutes remaining)` : ''}`);
+    return;
+  }
+
+  const breachMinutes = Number(event.metadata?.breachMinutes ?? 0);
+  this.showError(`${ref} breached SLA${breachMinutes > 0 ? ` by ${breachMinutes} minutes` : ''}`);
 }
 
 private showInfo(message: string): void {
@@ -925,6 +985,9 @@ private showInfo(message: string): void {
 
     const eventKey = String(event.metadata?.eventKey ?? '');
     return eventKey === 'start'
+      || eventKey === 'start_travel'
+      || eventKey === 'arrive_onsite'
+      || eventKey === 'start_work'
       || eventKey === 'returned_to_open'
       || eventKey === 'reopened'
       || eventKey === 'completion_report';
@@ -1059,7 +1122,7 @@ private showInfo(message: string): void {
 
     this.api.startWorkOrder(this.id).subscribe({
       next: () => {
-        this.showSuccess('Work order moved to In Progress.');
+        this.showSuccess('Onsite work started.');
         this.action = null;
         this.load();
       },
@@ -1074,6 +1137,24 @@ private showInfo(message: string): void {
 
         this.action = null;
       }
+    });
+  }
+
+  startTravel() {
+    if (!this.canStartTravel || this.isBusy) return;
+    this.action = 'travel';
+    this.api.startTravel(this.id).subscribe({
+      next: () => { this.showSuccess('Travel started. The execution SLA clock is now running.'); this.action = null; this.load(); },
+      error: (err) => { this.showError(err.error?.message || 'Travel could not be started.'); this.action = null; }
+    });
+  }
+
+  arriveOnsite() {
+    if (!this.canArriveOnsite || this.isBusy) return;
+    this.action = 'arrive';
+    this.api.arriveOnsite(this.id).subscribe({
+      next: () => { this.showSuccess('Onsite arrival recorded.'); this.action = null; this.load(); },
+      error: (err) => { this.showError(err.error?.message || 'Arrival could not be recorded.'); this.action = null; }
     });
   }
 
@@ -1196,10 +1277,28 @@ private showInfo(message: string): void {
     return {
       OPEN: 'status-open',
       ASSIGNED: 'status-assigned',
+      EN_ROUTE: 'status-in-progress',
+      ARRIVED: 'status-in-progress',
+      WORK_STARTED: 'status-in-progress',
       IN_PROGRESS: 'status-in-progress',
       COMPLETED: 'status-completed',
       CANCELLED: 'status-cancelled'
     }[s] || 'status-default';
+  }
+
+  get slaResultLabel(): string {
+    if (!this.workorder?.slaClockStartedAt) return 'Not started';
+    if (this.workorder.status !== 'COMPLETED') return this.workorder.slaBreached ? 'Breached' : 'Running';
+    return this.workorder.slaBreached
+      ? `Breached by ${this.formatMinutes(this.workorder.breachMinutes)}`
+      : 'Completed within SLA';
+  }
+
+  formatMinutes(value: number | null | undefined): string {
+    if (value == null) return 'Pending';
+    const hours = Math.floor(value / 60);
+    const minutes = value % 60;
+    return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
   }
 
   priorityClass(p: string) {
