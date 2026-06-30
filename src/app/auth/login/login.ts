@@ -61,22 +61,41 @@ import { DEMO_ACCOUNTS, DemoAccount } from '../../core/demo/demo-config';
             <span>Fake data only</span>
           </div>
 
-          <p class="credentials-intro">
-            Choose a role to fill the sign-in form. Demo changes may be reset periodically.
+          <p class="credentials-intro" id="demo-credentials-help">
+            Visitors can use any public account below. Select <strong>Fill login</strong>, then
+            choose <strong>Sign In</strong>. Demo changes may be reset periodically.
           </p>
 
-          <div class="account-grid">
-            <button
-              type="button"
-              class="account-card"
-              *ngFor="let account of demoAccounts"
-              (click)="useDemoAccount(account)">
-              <strong>{{ account.role }}</strong>
-              <span class="account-email">{{ account.email }}</span>
-              <span class="account-password">Password: {{ account.password }}</span>
-              <small>{{ account.description }}</small>
-              <span class="use-account">Use {{ account.role }} account</span>
-            </button>
+          <div class="credentials-table-wrap">
+            <table aria-describedby="demo-credentials-help">
+              <thead>
+                <tr>
+                  <th scope="col">Role</th>
+                  <th scope="col">Email</th>
+                  <th scope="col">Password</th>
+                  <th scope="col"><span class="visually-hidden">Action</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let account of demoAccounts">
+                  <td data-label="Role">
+                    <strong>{{ account.role }}</strong>
+                    <small>{{ account.description }}</small>
+                  </td>
+                  <td data-label="Email"><code>{{ account.email }}</code></td>
+                  <td data-label="Password"><code>{{ account.password }}</code></td>
+                  <td class="action-cell">
+                    <button
+                      mat-stroked-button
+                      color="primary"
+                      type="button"
+                      (click)="useDemoAccount(account)">
+                      Fill login
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </mat-card>
       </div>
@@ -176,52 +195,75 @@ import { DEMO_ACCOUNTS, DemoAccount } from '../../core/demo/demo-config';
       white-space: nowrap;
     }
 
-    .account-grid {
-      display: grid;
-      gap: 12px;
-      margin-top: 20px;
-    }
-
-    .account-card {
-      background: #f8fafc;
+    .credentials-table-wrap {
       border: 1px solid #dbe4f0;
       border-radius: 12px;
-      color: #0f172a;
-      cursor: pointer;
-      display: grid;
-      font: inherit;
-      gap: 4px;
-      padding: 16px;
+      margin-top: 20px;
+      overflow-x: auto;
+    }
+
+    table {
+      border-collapse: collapse;
+      min-width: 600px;
       text-align: left;
-      transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
       width: 100%;
     }
 
-    .account-card:hover,
-    .account-card:focus-visible {
-      border-color: #2563eb;
-      box-shadow: 0 10px 28px rgba(37, 99, 235, 0.12);
-      outline: none;
-      transform: translateY(-1px);
+    th {
+      background: #eff6ff;
+      color: #334155;
+      font-size: 0.72rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
     }
 
-    .account-email,
-    .account-password {
+    th,
+    td {
+      border-bottom: 1px solid #e2e8f0;
+      padding: 14px 12px;
+      vertical-align: middle;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    tbody tr:hover {
+      background: #f8fafc;
+    }
+
+    td:first-child {
+      min-width: 150px;
+    }
+
+    td code {
+      color: #0f172a;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       font-size: 0.82rem;
+      white-space: nowrap;
     }
 
-    .account-card small {
+    td small {
       color: #64748b;
+      display: block;
+      font-size: 0.75rem;
       line-height: 1.45;
       margin-top: 5px;
     }
 
-    .use-account {
-      color: #1d4ed8;
-      font-size: 0.8rem;
-      font-weight: 800;
-      margin-top: 6px;
+    .action-cell {
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .visually-hidden {
+      clip: rect(0 0 0 0);
+      clip-path: inset(50%);
+      height: 1px;
+      overflow: hidden;
+      position: absolute;
+      white-space: nowrap;
+      width: 1px;
     }
 
     @media (max-width: 920px) {
@@ -246,6 +288,79 @@ import { DEMO_ACCOUNTS, DemoAccount } from '../../core/demo/demo-config';
       .credentials-heading {
         align-items: flex-start;
         flex-direction: column;
+      }
+
+      .credentials-table-wrap {
+        border: 0;
+        overflow: visible;
+      }
+
+      table,
+      tbody,
+      tr,
+      td {
+        display: block;
+        min-width: 0;
+        width: 100%;
+      }
+
+      thead {
+        display: none;
+      }
+
+      tbody {
+        display: grid;
+        gap: 12px;
+      }
+
+      tbody tr {
+        background: #f8fafc;
+        border: 1px solid #dbe4f0;
+        border-radius: 12px;
+        box-sizing: border-box;
+        overflow: hidden;
+      }
+
+      th,
+      td,
+      tbody tr:last-child td {
+        border-bottom: 1px solid #e2e8f0;
+      }
+
+      td {
+        box-sizing: border-box;
+        display: grid;
+        gap: 8px;
+        grid-template-columns: 76px minmax(0, 1fr);
+        padding: 12px 14px;
+      }
+
+      td::before {
+        color: #64748b;
+        content: attr(data-label);
+        font-size: 0.7rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      td:first-child {
+        min-width: 0;
+      }
+
+      td:first-child small {
+        grid-column: 2;
+      }
+
+      td code {
+        overflow-wrap: anywhere;
+        white-space: normal;
+      }
+
+      .action-cell {
+        border-bottom: 0 !important;
+        display: flex;
+        justify-content: flex-end;
       }
     }
   `]
