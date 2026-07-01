@@ -30,6 +30,24 @@ This frontend is a strong showcase piece because it goes beyond page rendering:
 - workflow guards mirror backend rules so the experience feels intentional
 - dashboards mix operational insight with analytical views
 - the UX is shaped around real technician and dispatcher actions, not abstract sample data
+- the Sprint 12 visual system turns those workflows into a responsive enterprise SaaS experience
+- reports can be filtered and exported as CSV or branded PDF files
+
+## Sprint 12 Product Polish
+
+Sprint 12 keeps the existing Angular business logic and modernizes the presentation layer around it.
+
+- shared color, spacing, radius, surface, and elevation tokens
+- responsive sidenav that becomes a mobile drawer below 900px
+- polished toolbar and role-aware navigation
+- role-framed dashboard headers and report access
+- responsive work-order and technician tables
+- lazy-loaded Reports workspace for Admin and Dispatcher
+- Chart.js status/priority reporting
+- jsPDF and AutoTable PDF generation
+- standards-compliant CSV generation
+
+The Reports route consumes `GET /api/reports/operations?from=YYYY-MM-DD&to=YYYY-MM-DD` and uses the same response for the on-screen dashboard, CSV file, and PDF document. This keeps exported metrics consistent with what the user reviewed on screen.
 
 ## What The Frontend Is Responsible For
 

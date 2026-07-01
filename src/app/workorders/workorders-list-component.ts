@@ -217,6 +217,33 @@ interface WorkOrder {
   `,
 
   styles: [`
+    :host { display: block; }
+    .flex { display: flex; }
+    .flex-wrap { flex-wrap: wrap; }
+    .items-center { align-items: center; }
+    .justify-between { justify-content: space-between; }
+    .gap-4 { gap: 16px; }
+    .mb-4 { margin-bottom: 20px; }
+    .min-w\\[220px\\] { min-width: 220px; }
+    h2 { margin: 0 0 5px; color: var(--text-strong); font-size: 2rem; letter-spacing: -.035em; }
+    h2 + p { margin: 0; color: var(--text-muted); }
+    .filters { padding: 15px 16px 0; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-sm); }
+    .filters mat-form-field { flex: 1 1 180px; max-width: 300px; }
+    mat-card { border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; }
+    mat-card > div.flex { padding: 16px 18px; }
+    .table-wrapper { overflow-x: auto; }
+    mat-header-row { min-height: 48px; background: var(--surface-muted); }
+    mat-header-cell { color: var(--text-muted); font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+    mat-row { min-height: 58px; border-color: var(--border); }
+    mat-cell { color: var(--text); font-size: 13px; }
+    .badge { display: inline-flex; padding: 4px 8px; border-radius: 999px; font-size: 10px; font-weight: 800; }
+    .status-open, .status-assigned { color: #1d4ed8; background: #dbeafe; }
+    .status-en-route, .status-arrived, .status-work-started, .status-in-progress { color: #b45309; background: var(--warning-soft); }
+    .status-completed { color: var(--success); background: var(--success-soft); }
+    .status-cancelled { color: #475569; background: #e2e8f0; }
+    .priority-high, .priority-critical { color: var(--danger); background: var(--danger-soft); }
+    .priority-medium { color: #b45309; background: var(--warning-soft); }
+    .priority-low { color: var(--success); background: var(--success-soft); }
     .hover-row {
       cursor: pointer;
     }
@@ -234,7 +261,19 @@ interface WorkOrder {
 }
 
     .hover-row:hover {
-      background: #f5f5f5;
+      background: #f8fbff;
+    }
+
+    @media (max-width: 760px) {
+      h2 { font-size: 1.7rem; }
+      .filters mat-form-field { max-width: none; }
+      .mat-column-address { display: none; }
+      mat-cell, mat-header-cell { padding: 0 10px; }
+    }
+
+    @media (max-width: 540px) {
+      .mat-column-priority { display: none; }
+      .flex.items-center.justify-between { align-items: flex-start; }
     }
   `]
 })

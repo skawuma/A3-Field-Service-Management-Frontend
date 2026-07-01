@@ -1,1 +1,111 @@
-<p>main-layout works!</p>
+<mat-sidenav-container class="app-shell">
+  <mat-sidenav
+    #drawer
+    class="app-sidenav"
+    [mode]="isMobile ? 'over' : 'side'"
+    [opened]="!isMobile"
+    [fixedInViewport]="isMobile"
+  >
+    <div class="brand-block">
+      <div class="brand-mark">A3</div>
+      <div>
+        <strong>A3 FSM</strong>
+        <span>Service intelligence</span>
+      </div>
+      <button mat-icon-button type="button" *ngIf="isMobile" (click)="drawer.close()" aria-label="Close navigation">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <div class="workspace-card">
+      <span class="workspace-label">Workspace</span>
+      <strong>Field Operations</strong>
+      <span>{{ role === 'DISPATCH' ? 'Dispatch center' : role === 'TECH' ? 'Technician workspace' : 'Administration' }}</span>
+    </div>
+
+    <nav class="primary-nav" aria-label="Primary navigation">
+      <span class="nav-section-label">Overview</span>
+      <a mat-list-item routerLink="/dashboard" routerLinkActive="active-link" (click)="closeNavigation()">
+        <mat-icon>space_dashboard</mat-icon>
+        <span>Dashboard</span>
+      </a>
+
+      <span class="nav-section-label">Operations</span>
+      <a mat-list-item routerLink="/workorders" routerLinkActive="active-link" (click)="closeNavigation()">
+        <mat-icon>assignment</mat-icon>
+        <span>Work Orders</span>
+      </a>
+      <a
+        mat-list-item
+        routerLink="/technicians"
+        routerLinkActive="active-link"
+        *ngIf="isAdmin"
+        (click)="closeNavigation()"
+      >
+        <mat-icon>engineering</mat-icon>
+        <span>Technicians</span>
+      </a>
+      <a
+        mat-list-item
+        routerLink="/reports"
+        routerLinkActive="active-link"
+        *ngIf="isAdmin || isDispatch"
+        (click)="closeNavigation()"
+      >
+        <mat-icon>monitoring</mat-icon>
+        <span>Reports</span>
+        <span class="new-badge">New</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="health-dot"></div>
+      <div><strong>Production</strong><span>Systems operational</span></div>
+    </div>
+  </mat-sidenav>
+
+  <mat-sidenav-content class="main-surface">
+    <mat-toolbar class="app-toolbar">
+      <button mat-icon-button type="button" *ngIf="isMobile" (click)="toggleNavigation()" aria-label="Open navigation">
+        <mat-icon>menu</mat-icon>
+      </button>
+
+      <div class="toolbar-context">
+        <span>Operations workspace</span>
+        <strong>A3 Field Service Management</strong>
+      </div>
+
+      <div class="toolbar-actions">
+        <button mat-icon-button type="button" aria-label="Notifications">
+          <mat-icon>notifications_none</mat-icon>
+        </button>
+
+        <button class="profile-button" type="button" [matMenuTriggerFor]="userMenu" aria-label="Open account menu">
+          <span class="avatar">{{ userInitials }}</span>
+          <span class="profile-copy" *ngIf="!isMobile">
+            <strong>{{ displayName }}</strong>
+            <small>{{ role }}</small>
+          </span>
+          <mat-icon *ngIf="!isMobile">expand_more</mat-icon>
+        </button>
+      </div>
+
+      <mat-menu #userMenu="matMenu" class="menu-panel">
+        <div class="menu-header" *ngIf="userEmail">
+          <div class="avatar big">{{ userInitials }}</div>
+          <strong>{{ displayName }}</strong>
+          <span class="menu-email">{{ userEmail }}</span>
+          <span class="role-badge" [ngClass]="roleClass">{{ role }}</span>
+        </div>
+        <button mat-menu-item type="button" (click)="onLogout()">
+          <mat-icon>logout</mat-icon>
+          Sign out
+        </button>
+      </mat-menu>
+    </mat-toolbar>
+
+    <main class="app-content">
+      <router-outlet></router-outlet>
+    </main>
+  </mat-sidenav-content>
+</mat-sidenav-container>

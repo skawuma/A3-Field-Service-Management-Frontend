@@ -1,0 +1,179 @@
+<div class="reports-page">
+  <header class="page-header">
+    <div>
+      <span class="page-eyebrow">Sprint 12 intelligence</span>
+      <h1>Operations Reports</h1>
+      <p>Turn service activity, SLA performance, and technician outcomes into export-ready insights.</p>
+    </div>
+
+    <div class="export-actions">
+      <button mat-stroked-button type="button" (click)="exportCsv()" [disabled]="!report || loading">
+        <mat-icon>table_view</mat-icon>
+        Export CSV
+      </button>
+      <button mat-raised-button color="primary" type="button" (click)="exportPdf()" [disabled]="!report || loading">
+        <mat-icon>picture_as_pdf</mat-icon>
+        Export PDF
+      </button>
+    </div>
+  </header>
+
+  <mat-card class="filter-card">
+    <div class="filter-copy">
+      <mat-icon>date_range</mat-icon>
+      <div>
+        <strong>Reporting period</strong>
+        <span>Up to 366 days of created work orders</span>
+      </div>
+    </div>
+    <div class="date-fields">
+      <mat-form-field appearance="outline">
+        <mat-label>From</mat-label>
+        <input matInput type="date" [(ngModel)]="from" />
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>To</mat-label>
+        <input matInput type="date" [(ngModel)]="to" />
+      </mat-form-field>
+      <button mat-raised-button color="primary" type="button" (click)="loadReport()" [disabled]="loading">
+        <mat-icon>analytics</mat-icon>
+        Run Report
+      </button>
+    </div>
+  </mat-card>
+
+  <div class="loading-state" *ngIf="loading">
+    <mat-progress-spinner diameter="44"></mat-progress-spinner>
+    <span>Building your operations report...</span>
+  </div>
+
+  <mat-card class="error-state" *ngIf="!loading && loadError">
+    <mat-icon>cloud_off</mat-icon>
+    <div>
+      <strong>Report unavailable</strong>
+      <span>Try the request again or shorten the reporting period.</span>
+    </div>
+    <button mat-stroked-button type="button" (click)="loadReport()">Retry</button>
+  </mat-card>
+
+  <ng-container *ngIf="!loading && !loadError && report as currentReport">
+    <div class="report-meta">
+      <span><mat-icon>corporate_fare</mat-icon>{{ currentReport.scope }}</span>
+      <span>Generated {{ currentReport.generatedAt | date: 'medium' }}</span>
+    </div>
+
+    <section class="metric-grid" aria-label="Report summary">
+      <article class="metric-card primary">
+        <span class="metric-icon"><mat-icon>assignment</mat-icon></span>
+        <strong>{{ currentReport.summary.totalWorkOrders }}</strong>
+        <span>Total work orders</span>
+      </article>
+      <article class="metric-card info">
+        <span class="metric-icon"><mat-icon>bolt</mat-icon></span>
+        <strong>{{ currentReport.summary.activeWorkOrders }}</strong>
+        <span>Active work</span>
+      </article>
+      <article class="metric-card success">
+        <span class="metric-icon"><mat-icon>task_alt</mat-icon></span>
+        <strong>{{ currentReport.summary.completedWorkOrders }}</strong>
+        <span>Completed</span>
+      </article>
+      <article class="metric-card compliance">
+        <span class="metric-icon"><mat-icon>verified</mat-icon></span>
+        <strong>{{ currentReport.summary.slaCompliancePercent | number: '1.0-1' }}%</strong>
+        <span>SLA compliance</span>
+      </article>
+      <article class="metric-card danger">
+        <span class="metric-icon"><mat-icon>warning</mat-icon></span>
+        <strong>{{ currentReport.summary.breachedWorkOrders }}</strong>
+        <span>SLA breached</span>
+      </article>
+      <article class="metric-card neutral">
+        <span class="metric-icon"><mat-icon>schedule</mat-icon></span>
+        <strong>{{ formatDuration(currentReport.summary.averageResolutionMinutes) }}</strong>
+        <span>Avg. resolution</span>
+      </article>
+    </section>
+
+    <section class="clock-strip">
+      <div><span>Avg. time to assign</span><strong>{{ formatDuration(currentReport.summary.averageTimeToAssignMinutes) }}</strong></div>
+      <div><span>Avg. time to embark</span><strong>{{ formatDuration(currentReport.summary.averageTimeToStartMinutes) }}</strong></div>
+      <div><span>Completed within SLA</span><strong>{{ currentReport.summary.completedWithinSla }}</strong></div>
+      <div><span>Cancelled</span><strong>{{ currentReport.summary.cancelledWorkOrders }}</strong></div>
+    </section>
+
+    <section class="analytics-grid">
+      <mat-card class="report-panel">
+        <div class="panel-heading">
+          <div><span class="panel-eyebrow">Workload</span><h2>Status distribution</h2></div>
+          <mat-icon>donut_large</mat-icon>
+        </div>
+        <div class="chart-wrap">
+          <canvas baseChart [data]="statusChartData" [options]="doughnutOptions" type="doughnut"></canvas>
+        </div>
+      </mat-card>
+
+      <mat-card class="report-panel">
+        <div class="panel-heading">
+          <div><span class="panel-eyebrow">Risk mix</span><h2>Priority distribution</h2></div>
+          <mat-icon>bar_chart</mat-icon>
+        </div>
+        <div class="chart-wrap">
+          <canvas baseChart [data]="priorityChartData" [options]="barOptions" type="bar"></canvas>
+        </div>
+      </mat-card>
+    </section>
+
+    <mat-card class="report-panel technician-panel">
+      <div class="panel-heading">
+        <div><span class="panel-eyebrow">Team performance</span><h2>Technician SLA scorecard</h2></div>
+        <span class="record-count">{{ currentReport.technicianPerformance.length }} technicians</span>
+      </div>
+
+      <div class="technician-grid" *ngIf="currentReport.technicianPerformance.length; else noTechnicianData">
+        <article *ngFor="let technician of currentReport.technicianPerformance">
+          <div class="technician-topline">
+            <span class="avatar">{{ technician.technicianName.charAt(0) }}</span>
+            <div><strong>{{ technician.technicianName }}</strong><span>{{ technician.completedCount }} completed</span></div>
+            <span class="compliance-pill" [class.at-risk]="technician.compliancePercent < 80">
+              {{ technician.compliancePercent | number: '1.0-1' }}%
+            </span>
+          </div>
+          <div class="progress-track"><span [style.width.%]="technician.compliancePercent"></span></div>
+          <div class="technician-stats">
+            <span><strong>{{ technician.withinSlaCount }}</strong> within SLA</span>
+            <span><strong>{{ technician.breachedCount }}</strong> breached</span>
+            <span><strong>{{ formatDuration(technician.averageCompletionMinutes) }}</strong> avg.</span>
+          </div>
+        </article>
+      </div>
+      <ng-template #noTechnicianData><p class="empty-copy">No completed technician work falls within this period.</p></ng-template>
+    </mat-card>
+
+    <mat-card class="report-panel table-panel">
+      <div class="panel-heading">
+        <div><span class="panel-eyebrow">Report detail</span><h2>Work orders</h2></div>
+        <span class="record-count">{{ currentReport.workOrders.length }} records</span>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>Work order</th><th>Client</th><th>Status</th><th>Priority</th><th>Technician</th><th>SLA</th><th>Resolution</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let workOrder of currentReport.workOrders; trackBy: trackWorkOrder">
+              <td><strong>{{ workOrder.reference }}</strong><span>{{ workOrder.description }}</span></td>
+              <td>{{ workOrder.clientName }}</td>
+              <td><span class="data-pill status">{{ label(workOrder.status) }}</span></td>
+              <td><span class="data-pill" [attr.data-priority]="workOrder.priority">{{ label(workOrder.priority) }}</span></td>
+              <td>{{ workOrder.technicianName }}</td>
+              <td><span class="data-pill" [attr.data-sla]="workOrder.slaOutcome">{{ label(workOrder.slaOutcome) }}</span></td>
+              <td>{{ formatDuration(workOrder.resolutionMinutes) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </mat-card>
+  </ng-container>
+</div>

@@ -159,7 +159,35 @@ interface Technician {
       </mat-paginator>
     </mat-card>
   `,
-  styles: [/* unchanged styles from your last version */]
+  styles: [`
+    :host { display: block; }
+    .header-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
+    .title { margin: 0 0 5px; color: var(--text-strong); font-size: 2rem; letter-spacing: -.035em; }
+    .subtitle { margin: 0; color: var(--text-muted); }
+    .search-bar { width: min(100%, 480px); }
+    mat-card { border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; }
+    .table-wrapper { overflow-x: auto; }
+    mat-header-row { min-height: 48px; background: var(--surface-muted); }
+    mat-header-cell { color: var(--text-muted); font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+    mat-row { min-height: 60px; border-color: var(--border); }
+    mat-cell { color: var(--text); font-size: 13px; }
+    .font-medium { color: var(--text-strong); font-weight: 700; }
+    .badge { display: inline-flex; padding: 4px 9px; border-radius: 999px; font-size: 10px; font-weight: 800; }
+    .status-active { color: var(--success); background: var(--success-soft); }
+    .status-inactive { color: #475569; background: #e2e8f0; }
+    .hover-row:hover { background: #f8fbff; }
+    .empty-state { min-height: 220px; display: grid; place-items: center; align-content: center; color: var(--text-muted); text-align: center; }
+    .empty-state mat-icon { width: 42px; height: 42px; font-size: 42px; color: #94a3b8; }
+    .empty-state p { margin: 4px 0; }
+    @media (max-width: 760px) {
+      .title { font-size: 1.7rem; }
+      .mat-column-phone, .mat-column-certifications { display: none; }
+      mat-cell, mat-header-cell { padding: 0 10px; }
+    }
+    @media (max-width: 520px) {
+      .mat-column-email { display: none; }
+    }
+  `]
 })
 
 export class TechniciansListComponent implements OnInit, AfterViewInit {
@@ -306,4 +334,3 @@ export class TechniciansListComponent implements OnInit, AfterViewInit {
     return status === 'ACTIVE' ? 'status-active' : 'status-inactive';
   }
 }
-

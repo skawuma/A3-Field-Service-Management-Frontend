@@ -66,6 +66,33 @@ html {
     typography: Roboto,
     density: 0,
   ));
+
+  --primary: #2563eb;
+  --primary-dark: #11365b;
+  --primary-soft: #e8f1ff;
+  --success: #15803d;
+  --success-soft: #dcfce7;
+  --warning: #d97706;
+  --warning-soft: #fef3c7;
+  --danger: #dc2626;
+  --danger-soft: #fee2e2;
+  --app-bg: #f4f7fb;
+  --surface: #ffffff;
+  --surface-subtle: #fbfdff;
+  --surface-muted: #f1f5f9;
+  --text-strong: #102a43;
+  --text: #334e68;
+  --text-muted: #718096;
+  --border: #e2e8f0;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --shadow-sm: 0 8px 24px rgba(15, 42, 67, .06);
+  --shadow-md: 0 18px 48px rgba(15, 42, 67, .1);
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
 }
 
 body {
@@ -77,8 +104,8 @@ body {
   // Set a default background, font and text colors for the application using
   // Angular Material's system-level CSS variables. Learn more about these
   // variables at https://material.angular.dev/guide/system-variables
-  background-color: var(--mat-sys-surface);
-  color: var(--mat-sys-on-surface);
+  background-color: var(--app-bg);
+  color: var(--text);
   font: var(--mat-sys-body-medium);
 
   // Reset the user agent margin.
@@ -88,6 +115,17 @@ body {
 
 html, body { height: 100%; }
 body { margin: 0; font-family: Roboto, "Helvetica Neue", Arial, sans-serif; }
+
+* { box-sizing: border-box; }
+
+h1, h2, h3, h4, p { text-wrap: pretty; }
+
+button, input, select, textarea { font: inherit; }
+
+.mat-mdc-card {
+  --mdc-elevated-card-container-color: var(--surface);
+  border: 1px solid var(--border);
+}
 
 
 

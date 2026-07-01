@@ -42,6 +42,15 @@ export const routes: Routes = [
         children: techniciansRoutes
       },
 
+      {
+        path: 'reports',
+        canActivate: [roleGuard],
+        data: { roles: ['ADMIN', 'DISPATCH'] },
+        loadComponent: () =>
+          import('./reports/reports.component')
+            .then(m => m.ReportsComponent)
+      },
+
       // WORKORDERS MODULE
       {
         path: 'workorders',

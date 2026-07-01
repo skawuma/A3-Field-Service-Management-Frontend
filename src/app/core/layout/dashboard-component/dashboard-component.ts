@@ -3,7 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { ChartConfiguration, ChartOptions } from 'chart.js';
 import { BaseChartDirective } from 'ng2-charts';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { MATERIAL_IMPORTS } from '../../../material-imports';
 import { ApiService } from '../../services/api-service';
 import { AuthService } from '../../services/auth-service';
@@ -127,28 +127,35 @@ type DashboardTechnicianWorkloadResponse =
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, BaseChartDirective, ...MATERIAL_IMPORTS],
+  imports: [CommonModule, RouterLink, BaseChartDirective, ...MATERIAL_IMPORTS],
   template: `
     <div class="dashboard-page">
 
       <div class="header-row">
         <div class="header-text">
-          <h2 class="title">Dashboard</h2>
+          <span class="dashboard-eyebrow">{{ dashboardEyebrow }}</span>
+          <h1 class="title">Dashboard</h1>
           <p class="subtitle">{{ dashboardSubtitle }}</p>
           <p class="updated-at" *ngIf="lastUpdated">
             Last updated: {{ lastUpdated | date:'medium' }}
           </p>
         </div>
 
-        <button
-          mat-raised-button
-          color="primary"
-          (click)="refreshDashboard()"
-          [disabled]="isRefreshing"
-        >
-          <mat-icon>refresh</mat-icon>
-          Refresh
-        </button>
+        <div class="header-actions">
+          <a mat-stroked-button routerLink="/reports" *ngIf="!isTechDashboard">
+            <mat-icon>monitoring</mat-icon>
+            View Reports
+          </a>
+          <button
+            mat-raised-button
+            color="primary"
+            (click)="refreshDashboard()"
+            [disabled]="isRefreshing"
+          >
+            <mat-icon>refresh</mat-icon>
+            Refresh
+          </button>
+        </div>
       </div>
 
       <div *ngIf="loading" class="loading-container">
@@ -755,17 +762,36 @@ type DashboardTechnicianWorkloadResponse =
       gap: 4px;
     }
 
+    .dashboard-eyebrow {
+      color: var(--primary);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .header-actions mat-icon {
+      margin-right: 5px;
+    }
+
     .title {
       margin: 0;
       font-size: 28px;
       font-weight: 700;
-      color: #111827;
+      color: var(--text-strong);
+      letter-spacing: -.035em;
     }
 
     .subtitle {
       margin: 0;
       font-size: 14px;
-      color: #6b7280;
+      color: var(--text-muted);
     }
 
     .updated-at {
@@ -2111,6 +2137,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
 
     return 'Operational view of technicians, workload, and service performance';
+  }
+
+  get dashboardEyebrow(): string {
+    if (this.isTechDashboard) {
+      return 'My field workspace';
+    }
+    return this.auth.isDispatch() ? 'Dispatch command center' : 'Administration overview';
   }
 
   get dueTodayCardLabel(): string {
