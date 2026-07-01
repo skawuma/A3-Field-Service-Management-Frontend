@@ -4,12 +4,14 @@ on:
   push:
     branches:
       - main
+      - sprint-12-product-polish
       - sprint-11-sla-intelligence
       - sprint-9-production-devops
       - sprint-8-realtime-layer
   pull_request:
     branches:
       - main
+      - sprint-12-product-polish
       - sprint-11-sla-intelligence
       - sprint-9-production-devops
       - sprint-8-realtime-layer
