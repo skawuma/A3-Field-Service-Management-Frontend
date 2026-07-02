@@ -67,32 +67,62 @@ html {
     density: 0,
   ));
 
+  /* Brand */
   --primary: #2563eb;
-  --primary-dark: #11365b;
-  --primary-soft: #e8f1ff;
+  --primary-hover: #1d4ed8;
+  --primary-strong: #173b70;
+  --primary-dark: #0f2742;
+  --primary-soft: #eaf2ff;
+  --primary-soft-strong: #dbeafe;
+  --accent: #0ea5e9;
+
+  /* Semantic states */
   --success: #15803d;
-  --success-soft: #dcfce7;
-  --warning: #d97706;
-  --warning-soft: #fef3c7;
+  --success-soft: #e8f8ee;
+  --warning: #c56a08;
+  --warning-soft: #fff6dc;
   --danger: #dc2626;
-  --danger-soft: #fee2e2;
-  --app-bg: #f4f7fb;
+  --danger-soft: #fff0f0;
+  --info: #0369a1;
+  --info-soft: #e8f6fc;
+
+  /* Surfaces and content */
+  --app-bg: #f5f7fb;
   --surface: #ffffff;
-  --surface-subtle: #fbfdff;
+  --surface-subtle: #fbfcfe;
   --surface-muted: #f1f5f9;
-  --text-strong: #102a43;
-  --text: #334e68;
-  --text-muted: #718096;
+  --surface-raised: #ffffff;
+  --text-strong: #132238;
+  --text: #40536b;
+  --text-muted: #73849a;
+  --text-faint: #98a6b8;
   --border: #e2e8f0;
+  --border-strong: #cfdae7;
+
+  /* Shape, elevation, spacing and type */
+  --radius-xs: 8px;
   --radius-sm: 10px;
   --radius-md: 14px;
   --radius-lg: 18px;
-  --shadow-sm: 0 8px 24px rgba(15, 42, 67, .06);
-  --shadow-md: 0 18px 48px rgba(15, 42, 67, .1);
+  --radius-xl: 22px;
+  --shadow-xs: 0 1px 2px rgba(15, 39, 66, .04);
+  --shadow-sm: 0 8px 24px rgba(15, 39, 66, .06);
+  --shadow-md: 0 18px 48px rgba(15, 39, 66, .1);
+  --shadow-focus: 0 0 0 4px rgba(37, 99, 235, .12);
+  --space-1: 4px;
+  --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
   --space-5: 20px;
   --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --font-xs: .72rem;
+  --font-sm: .82rem;
+  --font-md: .94rem;
+  --font-lg: 1.08rem;
+  --font-xl: 1.5rem;
+  --content-width: 1500px;
 }
 
 body {
@@ -114,9 +144,13 @@ body {
 /* You can add global styles to this file, and also import other style files */
 
 html, body { height: 100%; }
-body { margin: 0; font-family: Roboto, "Helvetica Neue", Arial, sans-serif; }
+body { margin: 0; font-family: Roboto, "Helvetica Neue", Arial, sans-serif; line-height: 1.5; }
 
 * { box-sizing: border-box; }
+
+::selection { color: #fff; background: var(--primary); }
+
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
 h1, h2, h3, h4, p { text-wrap: pretty; }
 
@@ -125,6 +159,25 @@ button, input, select, textarea { font: inherit; }
 .mat-mdc-card {
   --mdc-elevated-card-container-color: var(--surface);
   border: 1px solid var(--border);
+}
+
+.mat-mdc-raised-button.mat-primary {
+  --mdc-protected-button-container-color: var(--primary);
+  --mdc-protected-button-label-text-color: #fff;
+}
+
+.mat-mdc-button-base:not(.mat-mdc-icon-button) { border-radius: var(--radius-sm) !important; }
+
+.mat-mdc-form-field { --mdc-outlined-text-field-outline-color: var(--border-strong); }
+
+.mat-mdc-paginator { color: var(--text-muted); background: transparent; }
+
+.mat-mdc-dialog-surface { border-radius: var(--radius-lg) !important; }
+
+.cdk-overlay-pane .mat-mdc-menu-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
 }
 
 

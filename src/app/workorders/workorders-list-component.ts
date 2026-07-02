@@ -37,28 +37,29 @@ interface WorkOrder {
   standalone: true,
   imports: [CommonModule, FormsModule, ...MATERIAL_IMPORTS],
   template: `
-    <!-- HEADER -->
-    <div class="flex items-center justify-between mb-4">
+    <div class="page-header">
       <div>
-        <h2 class="text-xl font-semibold">Work Orders</h2>
-        <p class="text-sm text-gray-500">
-          Manage, assign and track field work orders.
-        </p>
+        <span class="page-eyebrow">Field operations</span>
+        <h2>Work Orders</h2>
+        <p>Manage, assign and track every service visit from intake to completion.</p>
       </div>
 
-      <!-- 🔥 DISABLE FOR TECH -->
       <button
-        mat-fab
+        mat-raised-button
         color="primary"
         (click)="openAddDialog()"
-        *ngIf="!isTech"
-        matTooltip="Create Work Order">
+        *ngIf="!isTech">
         <mat-icon>add</mat-icon>
+        New Work Order
       </button>
     </div>
 
-    <!-- FILTER BAR -->
-    <div class="filters flex flex-wrap gap-4 mb-4 items-center">
+    <div class="filters">
+      <div class="filter-heading">
+        <span class="filter-icon"><mat-icon>tune</mat-icon></span>
+        <div><strong>Filter work orders</strong><span>Narrow the operational queue</span></div>
+      </div>
+      <div class="filter-fields">
 
       <!-- Search -->
       <mat-form-field appearance="outline" class="min-w-[220px]">
@@ -102,7 +103,7 @@ interface WorkOrder {
         </mat-form-field>
 
       </ng-container>
-
+      </div>
     </div>
 
     <mat-card *ngIf="!isTech && technicianIdFilter" class="mb-4">
@@ -120,17 +121,30 @@ interface WorkOrder {
       </div>
     </mat-card>
 
-    <mat-card>
+    <mat-card class="table-card">
+      <div class="table-heading">
+        <div><span>Work queue</span><strong>{{ totalElements }} work order{{ totalElements === 1 ? '' : 's' }}</strong></div>
+        <span class="live-indicator"><i></i> Live updates</span>
+      </div>
       <mat-progress-bar *ngIf="loading" mode="indeterminate"></mat-progress-bar>
 
+      <div *ngIf="!loading && loadError" class="table-state error-state">
+        <span><mat-icon>cloud_off</mat-icon></span>
+        <strong>Unable to load work orders</strong>
+        <p>The service queue could not be reached. Try again in a moment.</p>
+        <button mat-stroked-button type="button" (click)="loadPage(page)"><mat-icon>refresh</mat-icon> Retry</button>
+      </div>
+
       <!-- TABLE -->
-      <div class="overflow-x-auto">
+      <div class="overflow-x-auto" *ngIf="!loadError && (loading || dataSource.data.length)">
         <mat-table [dataSource]="dataSource" matSort class="w-full">
 
           <!-- Client -->
           <ng-container matColumnDef="clientName">
             <mat-header-cell *matHeaderCellDef mat-sort-header="clientName">Client</mat-header-cell>
-            <mat-cell *matCellDef="let w">{{ w.clientName }}</mat-cell>
+            <mat-cell *matCellDef="let w">
+              <span class="order-primary"><strong>{{ w.clientName }}</strong><small>#{{ w.id }} · {{ w.description || 'No description' }}</small></span>
+            </mat-cell>
           </ng-container>
 
           <!-- Address -->
@@ -165,7 +179,7 @@ interface WorkOrder {
               <button
                 mat-icon-button
                 matTooltip="View Details"
-                (click)="openDetail(w)">
+                (click)="openDetail(w); $event.stopPropagation()">
                 <mat-icon>visibility</mat-icon>
               </button>
 
@@ -174,7 +188,7 @@ interface WorkOrder {
                 *ngIf="!isTech"
                 mat-icon-button
                 matTooltip="Assign Technician"
-                (click)="openAssignDialog(w)">
+                (click)="openAssignDialog(w); $event.stopPropagation()">
                 <mat-icon>person_add</mat-icon>
               </button>
               <!-- TIMELINE -->
@@ -205,7 +219,15 @@ interface WorkOrder {
         </mat-table>
       </div>
 
+      <div *ngIf="!loading && !loadError && dataSource.data.length === 0" class="table-state empty-state">
+        <span><mat-icon>assignment</mat-icon></span>
+        <strong>No work orders found</strong>
+        <p>{{ search || priorityFilter || statusFilter ? 'Adjust your search or filters to see more results.' : 'New work orders will appear here when they are created.' }}</p>
+        <button *ngIf="!isTech && !search && !priorityFilter && !statusFilter" mat-raised-button color="primary" type="button" (click)="openAddDialog()"><mat-icon>add</mat-icon> Create work order</button>
+      </div>
+
       <mat-paginator
+        *ngIf="!loadError && totalElements > 0"
         [length]="totalElements"
         [pageIndex]="page"
         [pageSize]="size"
@@ -225,17 +247,36 @@ interface WorkOrder {
     .gap-4 { gap: 16px; }
     .mb-4 { margin-bottom: 20px; }
     .min-w\\[220px\\] { min-width: 220px; }
-    h2 { margin: 0 0 5px; color: var(--text-strong); font-size: 2rem; letter-spacing: -.035em; }
+    .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-5); margin-bottom: var(--space-5); }
+    .page-eyebrow { color: var(--primary); font-size: var(--font-xs); font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    h2 { margin: 4px 0 6px; color: var(--text-strong); font-size: clamp(1.85rem, 3vw, 2.35rem); line-height: 1.12; letter-spacing: -.04em; }
     h2 + p { margin: 0; color: var(--text-muted); }
-    .filters { padding: 15px 16px 0; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-sm); }
-    .filters mat-form-field { flex: 1 1 180px; max-width: 300px; }
+    .page-header button mat-icon { margin-right: 6px; }
+    .filters { display: flex; align-items: center; justify-content: space-between; gap: var(--space-5); margin-bottom: var(--space-5); padding: 16px 18px 0; border: 1px solid var(--border); border-radius: var(--radius-lg); background: linear-gradient(105deg, var(--surface), #f8fbff); box-shadow: var(--shadow-sm); }
+    .filter-heading { display: flex; align-items: center; gap: 11px; flex: 0 0 auto; padding-bottom: 16px; }
+    .filter-icon { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 11px; color: var(--primary); background: var(--primary-soft); }
+    .filter-heading div { display: grid; gap: 2px; }
+    .filter-heading strong { color: var(--text-strong); font-size: .8rem; }
+    .filter-heading div span { color: var(--text-muted); font-size: .68rem; }
+    .filter-fields { display: flex; justify-content: flex-end; gap: 10px; flex: 1; }
+    .filters mat-form-field { flex: 1 1 170px; max-width: 270px; }
     mat-card { border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; }
+    .table-heading { min-height: 68px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 15px 18px; border-bottom: 1px solid var(--border); }
+    .table-heading > div { display: grid; gap: 2px; }
+    .table-heading > div span { color: var(--primary); font-size: .63rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+    .table-heading strong { color: var(--text-strong); font-size: .9rem; }
+    .live-indicator { display: flex; align-items: center; gap: 7px; color: var(--text-muted); font-size: .68rem; font-weight: 700; }
+    .live-indicator i { width: 7px; height: 7px; border-radius: 50%; background: var(--success); box-shadow: 0 0 0 4px var(--success-soft); }
     mat-card > div.flex { padding: 16px 18px; }
+    .overflow-x-auto { overflow-x: auto; }
     .table-wrapper { overflow-x: auto; }
     mat-header-row { min-height: 48px; background: var(--surface-muted); }
     mat-header-cell { color: var(--text-muted); font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
     mat-row { min-height: 58px; border-color: var(--border); }
     mat-cell { color: var(--text); font-size: 13px; }
+    .order-primary { min-width: 190px; display: grid; gap: 3px; }
+    .order-primary strong { color: var(--text-strong); font-size: .8rem; }
+    .order-primary small { max-width: 245px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .badge { display: inline-flex; padding: 4px 8px; border-radius: 999px; font-size: 10px; font-weight: 800; }
     .status-open, .status-assigned { color: #1d4ed8; background: #dbeafe; }
     .status-en-route, .status-arrived, .status-work-started, .status-in-progress { color: #b45309; background: var(--warning-soft); }
@@ -244,6 +285,12 @@ interface WorkOrder {
     .priority-high, .priority-critical { color: var(--danger); background: var(--danger-soft); }
     .priority-medium { color: #b45309; background: var(--warning-soft); }
     .priority-low { color: var(--success); background: var(--success-soft); }
+    .table-state { min-height: 270px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 28px; text-align: center; color: var(--text-muted); }
+    .table-state > span { width: 50px; height: 50px; display: grid; place-items: center; margin-bottom: 7px; border-radius: 15px; color: var(--primary); background: var(--primary-soft); }
+    .table-state strong { color: var(--text-strong); font-size: .92rem; }
+    .table-state p { max-width: 430px; margin: 0 0 8px; font-size: .78rem; }
+    .table-state button mat-icon { margin-right: 5px; }
+    .error-state > span { color: var(--danger); background: var(--danger-soft); }
     .hover-row {
       cursor: pointer;
     }
@@ -266,6 +313,9 @@ interface WorkOrder {
 
     @media (max-width: 760px) {
       h2 { font-size: 1.7rem; }
+      .page-header, .filters { align-items: stretch; flex-direction: column; }
+      .filter-heading { padding-bottom: 0; }
+      .filter-fields { justify-content: stretch; flex-wrap: wrap; }
       .filters mat-form-field { max-width: none; }
       .mat-column-address { display: none; }
       mat-cell, mat-header-cell { padding: 0 10px; }
@@ -274,6 +324,7 @@ interface WorkOrder {
     @media (max-width: 540px) {
       .mat-column-priority { display: none; }
       .flex.items-center.justify-between { align-items: flex-start; }
+      .page-header button { width: 100%; }
     }
   `]
 })
@@ -298,6 +349,7 @@ export class WorkordersListComponent implements OnInit, AfterViewInit, OnDestroy
 
   sortBy = 'id,desc';
   loading = false;
+  loadError = false;
   realtimeSub?: Subscription;
   private readonly destroyRef = inject(DestroyRef);
 recentlyUpdatedWorkOrderId: number | null = null;
@@ -373,6 +425,7 @@ openEditDialog(w: WorkOrder) {
   loadPage(page: number) {
     this.page = page;
     this.loading = true;
+    this.loadError = false;
 
     const params: any = { page: this.page, size: this.size, sort: this.sortBy };
 
@@ -392,6 +445,7 @@ openEditDialog(w: WorkOrder) {
       },
       error: () => {
         this.loading = false;
+        this.loadError = true;
         this.showError('Failed to load work orders.');
       },
       complete: () => {

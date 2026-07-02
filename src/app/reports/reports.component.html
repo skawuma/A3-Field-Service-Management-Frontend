@@ -156,7 +156,7 @@
         <span class="record-count">{{ currentReport.workOrders.length }} records</span>
       </div>
 
-      <div class="table-scroll">
+      <div class="table-scroll" *ngIf="currentReport.workOrders.length; else noWorkOrders">
         <table>
           <thead>
             <tr><th>Work order</th><th>Client</th><th>Status</th><th>Priority</th><th>Technician</th><th>SLA</th><th>Resolution</th></tr>
@@ -165,7 +165,7 @@
             <tr *ngFor="let workOrder of currentReport.workOrders; trackBy: trackWorkOrder">
               <td><strong>{{ workOrder.reference }}</strong><span>{{ workOrder.description }}</span></td>
               <td>{{ workOrder.clientName }}</td>
-              <td><span class="data-pill status">{{ label(workOrder.status) }}</span></td>
+              <td><span class="data-pill status" [attr.data-status]="workOrder.status">{{ label(workOrder.status) }}</span></td>
               <td><span class="data-pill" [attr.data-priority]="workOrder.priority">{{ label(workOrder.priority) }}</span></td>
               <td>{{ workOrder.technicianName }}</td>
               <td><span class="data-pill" [attr.data-sla]="workOrder.slaOutcome">{{ label(workOrder.slaOutcome) }}</span></td>
@@ -174,6 +174,13 @@
           </tbody>
         </table>
       </div>
+      <ng-template #noWorkOrders>
+        <div class="table-empty">
+          <span><mat-icon>inbox</mat-icon></span>
+          <strong>No work orders in this period</strong>
+          <p>Choose a wider reporting range to see operational detail.</p>
+        </div>
+      </ng-template>
     </mat-card>
   </ng-container>
 </div>

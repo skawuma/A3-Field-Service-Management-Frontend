@@ -7,7 +7,7 @@
     [fixedInViewport]="isMobile"
   >
     <div class="brand-block">
-      <div class="brand-mark">A3</div>
+      <div class="brand-mark" aria-hidden="true"><span>A3</span></div>
       <div>
         <strong>A3 FSM</strong>
         <span>Service intelligence</span>
@@ -71,12 +71,12 @@
       </button>
 
       <div class="toolbar-context">
-        <span>Operations workspace</span>
+        <span><i></i> Operations workspace</span>
         <strong>A3 Field Service Management</strong>
       </div>
 
       <div class="toolbar-actions">
-        <button mat-icon-button type="button" aria-label="Notifications">
+        <button class="notification-button" mat-icon-button type="button" aria-label="Notifications">
           <mat-icon>notifications_none</mat-icon>
         </button>
 

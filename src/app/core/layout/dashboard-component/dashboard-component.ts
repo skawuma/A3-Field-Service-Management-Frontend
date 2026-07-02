@@ -326,8 +326,13 @@ type DashboardTechnicianWorkloadResponse =
               <mat-progress-spinner diameter="32" mode="indeterminate"></mat-progress-spinner>
             </div>
 
-            <div *ngIf="!slaLoading && slaLoadError" class="empty-state">
-              SLA tracking is temporarily unavailable.
+            <div *ngIf="!slaLoading && slaLoadError" class="empty-state inline-error">
+              <span class="state-visual"><mat-icon>cloud_off</mat-icon></span>
+              <strong>SLA tracking is temporarily unavailable</strong>
+              <span>The rest of your dashboard is still available.</span>
+              <button mat-stroked-button type="button" (click)="loadSlaSummary()">
+                <mat-icon>refresh</mat-icon> Try again
+              </button>
             </div>
 
             <div *ngIf="!slaLoading && !slaLoadError && slaSummary" class="sla-section">
@@ -745,26 +750,27 @@ type DashboardTechnicianWorkloadResponse =
     .dashboard-page {
       display: flex;
       flex-direction: column;
-      gap: 24px;
+      gap: var(--space-6);
     }
 
     .header-row {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      gap: 16px;
+      gap: var(--space-5);
       flex-wrap: wrap;
+      padding: 3px 2px 1px;
     }
 
     .header-text {
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 5px;
     }
 
     .dashboard-eyebrow {
       color: var(--primary);
-      font-size: 11px;
+      font-size: var(--font-xs);
       font-weight: 800;
       letter-spacing: .1em;
       text-transform: uppercase;
@@ -782,47 +788,53 @@ type DashboardTechnicianWorkloadResponse =
 
     .title {
       margin: 0;
-      font-size: 28px;
-      font-weight: 700;
+      font-size: clamp(1.85rem, 3vw, 2.45rem);
+      font-weight: 800;
       color: var(--text-strong);
       letter-spacing: -.035em;
+      line-height: 1.12;
     }
 
     .subtitle {
       margin: 0;
-      font-size: 14px;
+      font-size: .95rem;
       color: var(--text-muted);
     }
 
     .updated-at {
       margin: 0;
       font-size: 12px;
-      color: #9ca3af;
+      color: var(--text-faint);
     }
 
     .grid-container {
       display: grid;
-      gap: 20px;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
     }
 
-    .sla-intelligence-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
-    .sla-kpi { padding: 18px; display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; align-items: center; border-radius: 14px; }
-    .sla-kpi mat-icon { grid-row: 1 / 3; }
-    .sla-kpi strong { font-size: 22px; color: #0f172a; }
-    .sla-kpi span { font-size: 12px; color: #64748b; }
-    .sla-kpi.near { border-left: 4px solid #f59e0b; }
-    .sla-kpi.breached { border-left: 4px solid #dc2626; }
-    .sla-kpi.met { border-left: 4px solid #16a34a; }
-    .sla-kpi.clock { border-left: 4px solid #0284c7; }
-    .sla-performance-row { display: grid; grid-template-columns: 1.4fr repeat(3, 1fr); gap: 12px; padding: 12px 0; border-bottom: 1px solid #e5e7eb; font-size: 13px; }
+    .sla-intelligence-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); }
+    .sla-kpi { padding: 16px; display: grid; grid-template-columns: auto 1fr; gap: 2px 11px; align-items: center; border-radius: var(--radius-md); border: 1px solid var(--border); box-shadow: var(--shadow-xs); background: var(--surface); }
+    .sla-kpi mat-icon { grid-row: 1 / 3; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 11px; color: var(--info); background: var(--info-soft); font-size: 20px; }
+    .sla-kpi strong { font-size: 1.25rem; color: var(--text-strong); line-height: 1.2; }
+    .sla-kpi span { font-size: .7rem; color: var(--text-muted); }
+    .sla-kpi.near mat-icon { color: var(--warning); background: var(--warning-soft); }
+    .sla-kpi.breached mat-icon { color: var(--danger); background: var(--danger-soft); }
+    .sla-kpi.met mat-icon { color: var(--success); background: var(--success-soft); }
+    .sla-performance-row { display: grid; grid-template-columns: 1.4fr repeat(3, 1fr); gap: 12px; padding: 13px 2px; border-bottom: 1px solid var(--border); color: var(--text-muted); font-size: .78rem; }
+    .sla-performance-row strong { color: var(--text-strong); }
 
     .stat-card {
-      padding: 24px;
-      color: white;
-      border-radius: 16px;
+      --tone: var(--primary);
+      --tone-soft: var(--primary-soft);
+      min-height: 132px;
+      padding: 17px 18px;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+      box-shadow: var(--shadow-sm);
       transition: transform 0.2s ease, box-shadow 0.2s ease;
-      min-height: 145px;
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -830,52 +842,63 @@ type DashboardTechnicianWorkloadResponse =
       overflow: hidden;
     }
 
+    .stat-card::after { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 3px; background: var(--tone); opacity: .85; }
+
     .stat-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.15);
+      transform: translateY(-2px);
+      border-color: color-mix(in srgb, var(--tone) 25%, var(--border));
+      box-shadow: var(--shadow-md);
     }
 
     .card-top {
       display: flex;
       justify-content: flex-start;
-      margin-bottom: 12px;
+      margin-bottom: 11px;
     }
 
     .icon {
-      font-size: 34px;
-      width: 34px;
-      height: 34px;
-      opacity: 0.95;
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border-radius: 11px;
+      color: var(--tone);
+      background: var(--tone-soft);
+      font-size: 20px;
     }
 
     .value {
-      font-size: 34px;
-      font-weight: 700;
+      color: var(--text-strong);
+      font-size: 1.65rem;
+      font-weight: 800;
       line-height: 1.1;
       margin-bottom: 6px;
     }
 
     .label {
-      font-size: 14px;
-      font-weight: 500;
-      opacity: 0.92;
+      color: var(--text-muted);
+      font-size: .77rem;
+      font-weight: 600;
     }
 
     .details-grid {
       display: grid;
-      gap: 20px;
+      gap: var(--space-5);
       grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
     }
 
     .analytics-grid {
       display: grid;
-      gap: 20px;
+      gap: var(--space-5);
       grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
     }
 
     .panel-card {
-      border-radius: 16px;
-      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      box-shadow: var(--shadow-sm);
+      background: var(--surface);
     }
 
     .workload-panel {
@@ -884,20 +907,21 @@ type DashboardTechnicianWorkloadResponse =
     }
 
     .chart-card {
-      min-height: 380px;
+      min-height: 370px;
     }
 
     .panel-header h3 {
       margin: 0;
-      font-size: 18px;
-      font-weight: 600;
-      color: #111827;
+      font-size: 1rem;
+      font-weight: 750;
+      color: var(--text-strong);
+      letter-spacing: -.015em;
     }
 
     .panel-subtitle {
       margin: 4px 0 0;
-      font-size: 13px;
-      color: #6b7280;
+      font-size: .75rem;
+      color: var(--text-muted);
     }
 
     .snapshot-list {
@@ -912,9 +936,9 @@ type DashboardTechnicianWorkloadResponse =
       justify-content: space-between;
       align-items: center;
       padding: 12px 0;
-      border-bottom: 1px solid #e5e7eb;
-      font-size: 14px;
-      color: #374151;
+      border-bottom: 1px solid var(--border);
+      font-size: .8rem;
+      color: var(--text);
     }
 
     .snapshot-item:last-child {
@@ -924,12 +948,13 @@ type DashboardTechnicianWorkloadResponse =
     .loading-container {
       display: flex;
       justify-content: center;
-      padding: 56px 0;
+      min-height: 300px;
+      align-items: center;
     }
 
     .state-card {
-      border-radius: 16px;
-      padding: 20px;
+      border-radius: var(--radius-lg);
+      padding: 22px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -944,17 +969,17 @@ type DashboardTechnicianWorkloadResponse =
     }
 
     .state-icon {
-      color: #d32f2f;
+      color: var(--danger);
     }
 
     .state-title {
       font-weight: 600;
-      color: #111827;
+      color: var(--text-strong);
     }
 
     .state-subtitle {
       font-size: 14px;
-      color: #6b7280;
+      color: var(--text-muted);
     }
 
     .panel-loading {
@@ -971,12 +996,21 @@ type DashboardTechnicianWorkloadResponse =
     .empty-state {
       min-height: 280px;
       display: flex;
+      flex-direction: column;
+      gap: 6px;
       align-items: center;
       justify-content: center;
       text-align: center;
-      color: #6b7280;
-      font-size: 14px;
+      color: var(--text-muted);
+      font-size: .8rem;
+      padding: 22px;
     }
+
+    .inline-error { min-height: 240px; border: 1px dashed #fecaca; border-radius: var(--radius-md); background: linear-gradient(180deg, #fff, var(--danger-soft)); }
+    .inline-error .state-visual { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 14px; color: var(--danger); background: #fff; box-shadow: var(--shadow-sm); }
+    .inline-error strong { color: var(--text-strong); font-size: .9rem; }
+    .inline-error button { margin-top: 8px; }
+    .inline-error button mat-icon { margin-right: 5px; }
 
     .compact-empty-state {
       min-height: 160px;
@@ -984,14 +1018,14 @@ type DashboardTechnicianWorkloadResponse =
       align-items: center;
       justify-content: center;
       text-align: center;
-      color: #6b7280;
-      font-size: 14px;
+      color: var(--text-muted);
+      font-size: .8rem;
     }
 
     .chart-wrapper {
       position: relative;
       height: 280px;
-      margin-top: 16px;
+      margin-top: 18px;
     }
 
     .activity-list {
@@ -1006,7 +1040,7 @@ type DashboardTechnicianWorkloadResponse =
       gap: 12px;
       align-items: flex-start;
       padding-bottom: 14px;
-      border-bottom: 1px solid #e5e7eb;
+      border-bottom: 1px solid var(--border);
     }
 
     .activity-item:last-child {
@@ -1015,7 +1049,14 @@ type DashboardTechnicianWorkloadResponse =
     }
 
     .activity-icon mat-icon {
-      color: #3f51b5;
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+      color: var(--primary);
+      background: var(--primary-soft);
+      font-size: 18px;
       margin-top: 2px;
     }
 
@@ -1026,7 +1067,7 @@ type DashboardTechnicianWorkloadResponse =
     .activity-title {
       font-size: 14px;
       font-weight: 600;
-      color: #111827;
+      color: var(--text-strong);
     }
 
     .activity-link {
@@ -1036,7 +1077,7 @@ type DashboardTechnicianWorkloadResponse =
       font: inherit;
       font-size: 14px;
       font-weight: 600;
-      color: #1d4ed8;
+      color: var(--primary);
       cursor: pointer;
       text-align: left;
     }
@@ -1047,13 +1088,13 @@ type DashboardTechnicianWorkloadResponse =
 
     .activity-description {
       font-size: 14px;
-      color: #374151;
+      color: var(--text);
       margin-top: 2px;
     }
 
     .activity-meta {
       font-size: 12px;
-      color: #9ca3af;
+      color: var(--text-faint);
       margin-top: 4px;
     }
 
@@ -1071,20 +1112,20 @@ type DashboardTechnicianWorkloadResponse =
     }
 
     .sla-badge {
-      padding: 10px 14px;
+      padding: 7px 11px;
       border-radius: 999px;
-      font-size: 13px;
-      font-weight: 600;
+      font-size: .72rem;
+      font-weight: 750;
     }
 
     .overdue-badge {
-      background: #fff7ed;
-      color: #c2410c;
+      background: var(--danger-soft);
+      color: var(--danger);
     }
 
     .due-badge {
-      background: #eff6ff;
-      color: #1d4ed8;
+      background: var(--primary-soft);
+      color: var(--primary-hover);
     }
 
     .sla-columns {
@@ -1097,12 +1138,12 @@ type DashboardTechnicianWorkloadResponse =
       margin: 0 0 12px;
       font-size: 15px;
       font-weight: 600;
-      color: #111827;
+      color: var(--text-strong);
     }
 
     .sla-item {
       padding: 12px 0;
-      border-bottom: 1px solid #e5e7eb;
+      border-bottom: 1px solid var(--border);
     }
 
     .sla-item:last-child {
@@ -1116,7 +1157,7 @@ type DashboardTechnicianWorkloadResponse =
       font: inherit;
       font-size: 14px;
       font-weight: 600;
-      color: #1d4ed8;
+      color: var(--primary);
       cursor: pointer;
       text-align: left;
     }
@@ -1128,17 +1169,17 @@ type DashboardTechnicianWorkloadResponse =
     .sla-item-meta {
       margin-top: 4px;
       font-size: 13px;
-      color: #4b5563;
+      color: var(--text);
     }
 
     .sla-item-submeta {
       margin-top: 4px;
       font-size: 12px;
-      color: #9ca3af;
+      color: var(--text-faint);
     }
 
     .mini-empty-state {
-      color: #6b7280;
+      color: var(--text-muted);
       font-size: 14px;
       padding: 8px 0;
     }
@@ -1158,18 +1199,18 @@ type DashboardTechnicianWorkloadResponse =
     }
 
     .legend-item.low {
-      background: #dcfce7;
-      color: #166534;
+      background: var(--success-soft);
+      color: var(--success);
     }
 
     .legend-item.medium {
-      background: #fef3c7;
-      color: #92400e;
+      background: var(--warning-soft);
+      color: var(--warning);
     }
 
     .legend-item.high {
-      background: #ffedd5;
-      color: #c2410c;
+      background: var(--danger-soft);
+      color: var(--danger);
     }
 
     .heatmap-grid {
@@ -1181,14 +1222,16 @@ type DashboardTechnicianWorkloadResponse =
     }
 
     .heatmap-tile {
-      border-radius: 16px;
+      --load-tone: var(--success);
+      --load-soft: var(--success-soft);
+      border-radius: var(--radius-md);
       padding: 16px;
-      border: 1px solid #e5e7eb;
+      border: 1px solid var(--border);
       display: flex;
       flex-direction: column;
       gap: 14px;
       transition: transform 0.2s ease, box-shadow 0.2s ease;
-      min-height: 220px;
+      min-height: 206px;
       box-sizing: border-box;
       cursor: pointer;
       text-align: left;
@@ -1196,22 +1239,26 @@ type DashboardTechnicianWorkloadResponse =
 
     .heatmap-tile:hover {
       transform: translateY(-2px);
-      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+      border-color: color-mix(in srgb, var(--load-tone) 28%, var(--border));
+      box-shadow: var(--shadow-sm);
     }
 
     .heatmap-tile.low {
-      background: #f0fdf4;
-      border-color: #86efac;
+      --load-tone: var(--success);
+      --load-soft: var(--success-soft);
+      background: linear-gradient(180deg, var(--surface), var(--load-soft));
     }
 
     .heatmap-tile.medium {
-      background: #fffbeb;
-      border-color: #fcd34d;
+      --load-tone: var(--warning);
+      --load-soft: var(--warning-soft);
+      background: linear-gradient(180deg, var(--surface), var(--load-soft));
     }
 
     .heatmap-tile.high {
-      background: #fff7ed;
-      border-color: #fdba74;
+      --load-tone: var(--danger);
+      --load-soft: var(--danger-soft);
+      background: linear-gradient(180deg, var(--surface), var(--load-soft));
     }
 
     .heatmap-header {
@@ -1224,7 +1271,7 @@ type DashboardTechnicianWorkloadResponse =
     .heatmap-name {
       font-size: 15px;
       font-weight: 700;
-      color: #111827;
+      color: var(--text-strong);
     }
 
     .heatmap-level {
@@ -1232,15 +1279,15 @@ type DashboardTechnicianWorkloadResponse =
       font-weight: 700;
       border-radius: 999px;
       padding: 4px 10px;
-      background: rgba(255,255,255,0.65);
-      color: #374151;
+      background: rgba(255,255,255,.8);
+      color: var(--load-tone);
       white-space: nowrap;
     }
 
     .heatmap-total {
       font-size: 22px;
       font-weight: 700;
-      color: #111827;
+      color: var(--text-strong);
     }
 
     .heatmap-metrics {
@@ -1253,7 +1300,7 @@ type DashboardTechnicianWorkloadResponse =
       background: rgba(255, 255, 255, 0.7);
       border-radius: 12px;
       padding: 10px 12px;
-      border: 1px solid rgba(229, 231, 235, 0.9);
+      border: 1px solid rgba(226, 232, 240, .9);
       display: flex;
       flex-direction: column;
       gap: 4px;
@@ -1261,24 +1308,22 @@ type DashboardTechnicianWorkloadResponse =
 
     .heatmap-metric span {
       font-size: 12px;
-      color: #6b7280;
+      color: var(--text-muted);
     }
 
     .heatmap-metric strong {
       font-size: 18px;
-      color: #111827;
+      color: var(--text-strong);
     }
 
-    .primary { background: linear-gradient(135deg, #3f51b5, #5c6bc0); }
-    .accent { background: linear-gradient(135deg, #e91e63, #ec407a); }
-    .warn { background: linear-gradient(135deg, #f44336, #ff7043); }
-    .in-progress { background: linear-gradient(135deg, #009688, #26a69a); }
-    .unassigned { background: linear-gradient(135deg, #607d8b, #78909c); }
-    .today { background: linear-gradient(135deg, #8bc34a, #9ccc65); }
-    .sla-due { background: linear-gradient(135deg, #0284c7, #38bdf8); }
-    .overdue { background: linear-gradient(135deg, #c2410c, #f97316); }
-    .completed { background: linear-gradient(135deg, #2e7d32, #43a047); }
-    .urgent { background: linear-gradient(135deg, #fb8c00, #ffb300); }
+    .stat-card.primary { --tone: var(--primary); --tone-soft: var(--primary-soft); }
+    .stat-card.accent { --tone: #7c3aed; --tone-soft: #f1eafe; }
+    .stat-card.warn, .stat-card.overdue { --tone: var(--danger); --tone-soft: var(--danger-soft); }
+    .stat-card.in-progress { --tone: #0284c7; --tone-soft: var(--info-soft); }
+    .stat-card.unassigned { --tone: #64748b; --tone-soft: #eef2f6; }
+    .stat-card.today, .stat-card.completed { --tone: var(--success); --tone-soft: var(--success-soft); }
+    .stat-card.sla-due { --tone: #0e7490; --tone-soft: #e6f7fa; }
+    .stat-card.urgent { --tone: var(--warning); --tone-soft: var(--warning-soft); }
 
     @media (max-width: 768px) {
       .title {

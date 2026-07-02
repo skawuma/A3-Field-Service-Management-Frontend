@@ -29,46 +29,56 @@ interface Technician {
     <!-- HEADER -->
     <div class="header-row">
       <div>
+        <span class="page-eyebrow">Team directory</span>
         <h2 class="title">Technicians</h2>
-        <p class="subtitle">Manage field technicians and contact information.</p>
+        <p class="subtitle">Manage field technicians, availability, and service credentials.</p>
       </div>
 
       <!-- Add Technician: ADMIN only -->
       <button
         *ngIf="isAdmin"
-        mat-fab
+        mat-raised-button
         color="primary"
-        (click)="openAddDialog()"
-        matTooltip="Add Technician">
+        (click)="openAddDialog()">
         <mat-icon>add</mat-icon>
+        Add Technician
       </button>
     </div>
 
-    <!-- SEARCH BAR -->
-    <mat-form-field appearance="outline" class="search-bar">
-      <mat-label>Search technicians</mat-label>
-      <input
-        matInput
-        (input)="applyFilter($event)"
-        placeholder="Search by name, email, phone or certs..." />
-      <button
-        *ngIf="searchValue"
-        mat-icon-button
-        matSuffix
-        aria-label="Clear"
-        (click)="clearFilter()">
-        <mat-icon>close</mat-icon>
-      </button>
-      <mat-icon matSuffix *ngIf="!searchValue">search</mat-icon>
-    </mat-form-field>
+    <div class="search-panel">
+      <div class="search-copy"><span><mat-icon>engineering</mat-icon></span><div><strong>Technician directory</strong><small>{{ totalElements }} team member{{ totalElements === 1 ? '' : 's' }}</small></div></div>
+      <mat-form-field appearance="outline" class="search-bar">
+        <mat-label>Search technicians</mat-label>
+        <input
+          matInput
+          (input)="applyFilter($event)"
+          placeholder="Name, email, phone or certification" />
+        <button
+          *ngIf="searchValue"
+          mat-icon-button
+          matSuffix
+          aria-label="Clear"
+          (click)="clearFilter()">
+          <mat-icon>close</mat-icon>
+        </button>
+        <mat-icon matSuffix *ngIf="!searchValue">search</mat-icon>
+      </mat-form-field>
+    </div>
 
     <mat-card>
 
       <!-- LOADING BAR -->
       <mat-progress-bar *ngIf="loading" mode="indeterminate"></mat-progress-bar>
 
+      <div *ngIf="!loading && loadError" class="empty-state error-state">
+        <span class="state-icon"><mat-icon>cloud_off</mat-icon></span>
+        <strong>Unable to load technicians</strong>
+        <p>The team directory is temporarily unavailable.</p>
+        <button mat-stroked-button type="button" (click)="loadPage()"><mat-icon>refresh</mat-icon> Retry</button>
+      </div>
+
       <!-- TABLE -->
-      <div class="table-wrapper">
+      <div class="table-wrapper" *ngIf="!loadError && (loading || dataSource.data.length)">
         <mat-table [dataSource]="dataSource" matSort>
 
           <!-- Name -->
@@ -77,7 +87,7 @@ interface Technician {
               Name
             </mat-header-cell>
             <mat-cell *matCellDef="let t">
-              <span class="font-medium">{{ t.firstName }} {{ t.lastName }}</span>
+              <span class="tech-identity"><i>{{ t.firstName.charAt(0) }}{{ t.lastName.charAt(0) }}</i><span><strong>{{ t.firstName }} {{ t.lastName }}</strong><small>Technician #{{ t.id }}</small></span></span>
             </mat-cell>
           </ng-container>
 
@@ -142,15 +152,17 @@ interface Technician {
 
       <!-- EMPTY STATE -->
       <div
-        *ngIf="!loading && dataSource.data.length === 0"
+        *ngIf="!loading && !loadError && dataSource.data.length === 0"
         class="empty-state">
-        <mat-icon class="mb-2">engineering</mat-icon>
-        <p class="mb-1">No technicians found.</p>
-        <p class="text-xs">Try adjusting your search or add a new technician.</p>
+        <span class="state-icon"><mat-icon>engineering</mat-icon></span>
+        <strong>No technicians found</strong>
+        <p>{{ searchValue ? 'Try a different name, contact detail, or certification.' : 'Add your first field technician to begin building the team.' }}</p>
+        <button *ngIf="isAdmin && !searchValue" mat-raised-button color="primary" type="button" (click)="openAddDialog()"><mat-icon>add</mat-icon> Add technician</button>
       </div>
 
       <!-- PAGINATOR -->
       <mat-paginator
+        *ngIf="!loadError && totalElements > 0"
         [length]="totalElements"
         [pageIndex]="page"
         [pageSize]="size"
@@ -161,30 +173,49 @@ interface Technician {
   `,
   styles: [`
     :host { display: block; }
-    .header-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
-    .title { margin: 0 0 5px; color: var(--text-strong); font-size: 2rem; letter-spacing: -.035em; }
+    .header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
+    .page-eyebrow { color: var(--primary); font-size: var(--font-xs); font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    .title { margin: 4px 0 6px; color: var(--text-strong); font-size: clamp(1.85rem, 3vw, 2.35rem); line-height: 1.12; letter-spacing: -.04em; }
     .subtitle { margin: 0; color: var(--text-muted); }
-    .search-bar { width: min(100%, 480px); }
+    .header-row button mat-icon { margin-right: 6px; }
+    .search-panel { display: flex; align-items: center; justify-content: space-between; gap: var(--space-5); margin-bottom: var(--space-5); padding: 16px 18px 0; border: 1px solid var(--border); border-radius: var(--radius-lg); background: linear-gradient(105deg, var(--surface), #f8fbff); box-shadow: var(--shadow-sm); }
+    .search-copy { display: flex; align-items: center; gap: 11px; padding-bottom: 16px; }
+    .search-copy > span { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 11px; color: var(--primary); background: var(--primary-soft); }
+    .search-copy > div { display: grid; gap: 2px; }
+    .search-copy strong { color: var(--text-strong); font-size: .8rem; }
+    .search-copy small { color: var(--text-muted); font-size: .68rem; }
+    .search-bar { width: min(100%, 460px); }
     mat-card { border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; }
     .table-wrapper { overflow-x: auto; }
     mat-header-row { min-height: 48px; background: var(--surface-muted); }
     mat-header-cell { color: var(--text-muted); font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
     mat-row { min-height: 60px; border-color: var(--border); }
     mat-cell { color: var(--text); font-size: 13px; }
-    .font-medium { color: var(--text-strong); font-weight: 700; }
+    .tech-identity { min-width: 190px; display: flex; align-items: center; gap: 10px; }
+    .tech-identity > i { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; color: var(--primary); background: var(--primary-soft); font-size: .65rem; font-style: normal; font-weight: 800; }
+    .tech-identity > span { display: grid; gap: 2px; }
+    .tech-identity strong { color: var(--text-strong); font-size: .78rem; }
+    .tech-identity small { color: var(--text-muted); font-size: .65rem; }
     .badge { display: inline-flex; padding: 4px 9px; border-radius: 999px; font-size: 10px; font-weight: 800; }
     .status-active { color: var(--success); background: var(--success-soft); }
     .status-inactive { color: #475569; background: #e2e8f0; }
     .hover-row:hover { background: #f8fbff; }
-    .empty-state { min-height: 220px; display: grid; place-items: center; align-content: center; color: var(--text-muted); text-align: center; }
-    .empty-state mat-icon { width: 42px; height: 42px; font-size: 42px; color: #94a3b8; }
-    .empty-state p { margin: 4px 0; }
+    .empty-state { min-height: 250px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 28px; color: var(--text-muted); text-align: center; }
+    .state-icon { width: 50px; height: 50px; display: grid; place-items: center; margin-bottom: 7px; border-radius: 15px; color: var(--primary); background: var(--primary-soft); }
+    .empty-state strong { color: var(--text-strong); font-size: .92rem; }
+    .empty-state p { max-width: 420px; margin: 0 0 8px; font-size: .78rem; }
+    .empty-state button mat-icon { margin-right: 5px; }
+    .error-state .state-icon { color: var(--danger); background: var(--danger-soft); }
     @media (max-width: 760px) {
       .title { font-size: 1.7rem; }
+      .search-panel { align-items: stretch; flex-direction: column; }
+      .search-copy { padding-bottom: 0; }
       .mat-column-phone, .mat-column-certifications { display: none; }
       mat-cell, mat-header-cell { padding: 0 10px; }
     }
     @media (max-width: 520px) {
+      .header-row { align-items: stretch; flex-direction: column; }
+      .header-row button { width: 100%; }
       .mat-column-email { display: none; }
     }
   `]
@@ -209,6 +240,7 @@ export class TechniciansListComponent implements OnInit, AfterViewInit {
 
   /** ---------- UI State ---------- **/
   loading = false;
+  loadError = false;
   searchValue = '';
 
   @ViewChild(MatPaginator) paginator!: MatPaginator;
@@ -265,6 +297,7 @@ export class TechniciansListComponent implements OnInit, AfterViewInit {
   /** ---------------- PAGE LOAD ---------------- **/
   loadPage() {
     this.loading = true;
+    this.loadError = false;
 
     this.api.getPage<Technician>('technicians', this.page, this.size, this.sortBy)
       .subscribe({
@@ -274,7 +307,11 @@ export class TechniciansListComponent implements OnInit, AfterViewInit {
           this.size = res.size;
           this.totalElements = res.totalElements;
         },
-        error: err => console.error('Failed to load technicians', err),
+        error: err => {
+          this.loading = false;
+          this.loadError = true;
+          console.error('Failed to load technicians', err);
+        },
         complete: () => this.loading = false
       });
   }
