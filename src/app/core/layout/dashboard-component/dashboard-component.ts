@@ -1,6 +1,7 @@
 import { Component, DestroyRef, OnDestroy, OnInit, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { ChartConfiguration, ChartOptions } from 'chart.js';
 import { BaseChartDirective } from 'ng2-charts';
 import { Router, RouterLink } from '@angular/router';
@@ -328,8 +329,8 @@ type DashboardTechnicianWorkloadResponse =
 
             <div *ngIf="!slaLoading && slaLoadError" class="empty-state inline-error">
               <span class="state-visual"><mat-icon>cloud_off</mat-icon></span>
-              <strong>SLA tracking is temporarily unavailable</strong>
-              <span>The rest of your dashboard is still available.</span>
+              <strong>SLA data unavailable</strong>
+              <span>Please refresh or check backend service status.</span>
               <button mat-stroked-button type="button" (click)="loadSlaSummary()">
                 <mat-icon>refresh</mat-icon> Try again
               </button>
@@ -1563,10 +1564,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
           this.loading = false;
         }
       },
-      error: () => {
+      error: (error: HttpErrorResponse) => {
         this.slaLoading = false;
         this.slaLoadError = true;
-        this.notify.error('Failed to load SLA tracking data');
+        this.logDashboardApiError('SLA summary', error);
 
         if (asPrimaryLoad) {
           this.loading = false;
@@ -1579,7 +1580,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
   loadSlaIntelligence(): void {
     this.api.get<DashboardSlaIntelligence>('dashboard/sla-intelligence').subscribe({
       next: (res) => this.slaIntelligence = res,
-      error: () => this.notify.error('Failed to load SLA intelligence')
+      error: (error: HttpErrorResponse) => this.logDashboardApiError('SLA intelligence', error)
+    });
+  }
+
+  private logDashboardApiError(resource: string, error: HttpErrorResponse): void {
+    console.error(`[Dashboard] ${resource} request failed`, {
+      status: error.status,
+      statusText: error.statusText,
+      url: error.url,
+      message: error.message
     });
   }
 
