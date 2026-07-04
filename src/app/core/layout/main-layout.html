@@ -37,6 +37,16 @@
       </a>
       <a
         mat-list-item
+        [routerLink]="isTech ? '/timesheets/my' : '/timesheets/admin'"
+        routerLinkActive="active-link"
+        (click)="closeNavigation()"
+      >
+        <mat-icon>calendar_month</mat-icon>
+        <span>Timesheets</span>
+        <span class="new-badge">New</span>
+      </a>
+      <a
+        mat-list-item
         routerLink="/technicians"
         routerLinkActive="active-link"
         *ngIf="isAdmin"

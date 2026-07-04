@@ -5,6 +5,7 @@ import { techniciansRoutes } from './technicians/technicians.routes';
 import { workordersRoutes } from './workorders/workorders.routes';
 import { MainLayoutComponent } from './core/layout/main-layout';
 import { roleGuard } from './core/guards/role-guard';
+import { timesheetRoutes } from './timesheets/timesheets.routes';
 
 export const routes: Routes = [
 
@@ -67,6 +68,11 @@ export const routes: Routes = [
                 .then(m => m.WorkOrderDetailComponent)
           }
         ]
+      },
+
+      {
+        path: 'timesheets',
+        children: timesheetRoutes
       }
 
     ]

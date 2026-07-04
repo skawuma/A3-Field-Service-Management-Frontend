@@ -1,0 +1,68 @@
+<div class="admin-page">
+  <header class="page-header">
+    <div>
+      <span class="page-eyebrow">Payroll operations</span>
+      <h1>Technician Timesheets</h1>
+      <p>Review weekly field activity, approve payroll records, and export signed timesheets.</p>
+    </div>
+    <div class="queue-stat"><span>Visible records</span><strong>{{ timesheets.length }}</strong></div>
+  </header>
+
+  <mat-card class="filter-card">
+    <div class="filter-title"><mat-icon>filter_alt</mat-icon><span><strong>Payroll filters</strong><small>Narrow the weekly review queue</small></span></div>
+    <mat-form-field appearance="outline">
+      <mat-label>Week containing</mat-label>
+      <input matInput type="date" [(ngModel)]="weekStart" />
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>Technician</mat-label>
+      <mat-select [(ngModel)]="technicianId">
+        <mat-option [value]="null">All technicians</mat-option>
+        <mat-option *ngFor="let technician of technicians" [value]="technician.id">{{ technician.name }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>Status</mat-label>
+      <mat-select [(ngModel)]="status">
+        <mat-option value="">All statuses</mat-option>
+        <mat-option *ngFor="let option of statuses" [value]="option">{{ statusLabel(option) }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+    <button mat-raised-button color="primary" type="button" (click)="load()" [disabled]="loading">Apply</button>
+    <button mat-button type="button" (click)="clearFilters()" [disabled]="loading">Clear</button>
+  </mat-card>
+
+  <div class="loading-state" *ngIf="loading"><mat-progress-spinner diameter="44"></mat-progress-spinner><span>Loading payroll queue...</span></div>
+
+  <mat-card class="error-state" *ngIf="!loading && loadError">
+    <mat-icon>cloud_off</mat-icon><div><strong>Timesheets unavailable</strong><span>Please refresh or check backend service status.</span></div>
+    <button mat-stroked-button type="button" (click)="load()">Try again</button>
+  </mat-card>
+
+  <mat-card class="queue-card" *ngIf="!loading && !loadError">
+    <div class="panel-heading"><div><span class="panel-eyebrow">Weekly submissions</span><h2>Payroll review queue</h2></div></div>
+    <div class="empty-state" *ngIf="!timesheets.length">
+      <span><mat-icon>inbox</mat-icon></span><strong>No matching timesheets</strong><p>Adjust the filters or wait for technicians to complete weekly work.</p>
+    </div>
+    <div class="table-scroll" *ngIf="timesheets.length">
+      <table>
+        <thead><tr><th>Technician</th><th>Week</th><th>Status</th><th>Entries</th><th>Miles</th><th>Submitted</th><th>Actions</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let sheet of timesheets; trackBy: trackTimesheet" (click)="open(sheet)" tabindex="0" (keyup.enter)="open(sheet)">
+            <td><span class="technician-cell"><span class="avatar">{{ sheet.technicianName.charAt(0) }}</span><strong>{{ sheet.technicianName }}</strong></span></td>
+            <td><strong>{{ formatDate(sheet.weekStartDate) }}</strong><span class="muted">to {{ formatDate(sheet.weekEndDate) }}</span></td>
+            <td><span class="status-badge" [attr.data-status]="sheet.status">{{ statusLabel(sheet.status) }}</span></td>
+            <td>{{ sheet.entries.length }}</td>
+            <td>{{ totalMiles(sheet) | number: '1.0-2' }}</td>
+            <td>{{ sheet.submittedAt ? (sheet.submittedAt | date: 'medium') : 'Not submitted' }}</td>
+            <td class="actions-cell">
+              <button mat-icon-button type="button" aria-label="Export CSV" (click)="exportCsv(sheet, $event)"><mat-icon>table_view</mat-icon></button>
+              <button mat-icon-button type="button" aria-label="Export PDF" (click)="exportPdf(sheet, $event)"><mat-icon>picture_as_pdf</mat-icon></button>
+              <button mat-icon-button type="button" aria-label="Open timesheet" (click)="$event.stopPropagation(); open(sheet)"><mat-icon>arrow_forward</mat-icon></button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </mat-card>
+</div>
