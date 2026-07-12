@@ -95,6 +95,17 @@ interface DashboardSlaIntelligence {
   technicianPerformance: DashboardTechnicianSlaPerformance[];
 }
 
+type SlaMetricTone = 'success' | 'warning' | 'danger' | 'info';
+
+interface SlaCockpitMetric {
+  icon: string;
+  label: string;
+  value: string;
+  helper: string;
+  meta: string;
+  tone: SlaMetricTone;
+}
+
 interface DashboardTechnicianWorkloadItem {
   technicianId: number | null;
   technicianName: string;
@@ -295,23 +306,127 @@ type DashboardTechnicianWorkloadResponse =
           </mat-card>
         </div>
 
-        <div class="sla-intelligence-grid" *ngIf="slaIntelligence">
-          <mat-card class="sla-kpi near"><mat-icon>notifications_active</mat-icon><strong>{{ slaIntelligence.nearBreachCount }}</strong><span>Near Breach</span></mat-card>
-          <mat-card class="sla-kpi breached"><mat-icon>warning</mat-icon><strong>{{ slaIntelligence.breachedActiveCount }}</strong><span>Active Breached</span></mat-card>
-          <mat-card class="sla-kpi met"><mat-icon>verified</mat-icon><strong>{{ slaIntelligence.completedWithinSlaCount }}</strong><span>Completed Within SLA</span></mat-card>
-          <mat-card class="sla-kpi clock"><mat-icon>assignment_turned_in</mat-icon><strong>{{ formatDuration(slaIntelligence.averageTimeToAssignMinutes) }}</strong><span>Avg. Time to Assign</span></mat-card>
-          <mat-card class="sla-kpi clock"><mat-icon>departure_board</mat-icon><strong>{{ formatDuration(slaIntelligence.averageTimeToStartMinutes) }}</strong><span>Avg. Time to Embark</span></mat-card>
-          <mat-card class="sla-kpi clock"><mat-icon>timer</mat-icon><strong>{{ formatDuration(slaIntelligence.averageTimeToCompleteMinutes) }}</strong><span>Avg. Time to Complete</span></mat-card>
-        </div>
+        <mat-card class="sla-cockpit-card" *ngIf="showSlaCockpit">
+          <div class="sla-cockpit-header">
+            <div>
+              <span class="panel-eyebrow">SLA metrics</span>
+              <h2>{{ slaCockpitTitle }}</h2>
+              <p class="panel-subtitle">{{ slaCockpitSubtitle }}</p>
+            </div>
 
-        <mat-card class="panel-card" *ngIf="!isTechDashboard && slaIntelligence?.technicianPerformance?.length">
-          <div class="panel-header"><h3>Technician SLA Performance</h3><p class="panel-subtitle">Execution SLA results from completed work orders</p></div>
-          <div class="sla-performance-row" *ngFor="let item of slaIntelligence!.technicianPerformance">
-            <strong>{{ item.technicianName }}</strong>
-            <span>{{ item.compliancePercent }}% compliant</span>
-            <span>{{ item.withinSlaCount }}/{{ item.completedCount }} within SLA</span>
-            <span>{{ formatDuration(item.averageCompletionMinutes) }} average</span>
+            <span class="sla-status-pill" [attr.data-status]="slaHealthStatusTone">
+              <mat-icon>{{ slaHealthStatusIcon }}</mat-icon>
+              {{ slaHealthStatusLabel }}
+            </span>
           </div>
+
+          <div *ngIf="slaIntelligenceLoading" class="panel-loading cockpit-loading">
+            <mat-progress-spinner diameter="36" mode="indeterminate"></mat-progress-spinner>
+            <span>Loading SLA intelligence…</span>
+          </div>
+
+          <div *ngIf="!slaIntelligenceLoading && slaIntelligenceLoadError" class="empty-state inline-error">
+            <span class="state-visual"><mat-icon>cloud_off</mat-icon></span>
+            <strong>SLA data unavailable</strong>
+            <span>Please refresh or check backend service status.</span>
+            <button mat-stroked-button type="button" (click)="loadSlaIntelligence()">
+              <mat-icon>refresh</mat-icon> Try again
+            </button>
+          </div>
+
+          <ng-container *ngIf="!slaIntelligenceLoading && !slaIntelligenceLoadError && slaIntelligence">
+            <div class="sla-cockpit-grid">
+              <section
+                class="sla-gauge-card"
+                [attr.data-status]="slaHealthStatusTone"
+                aria-label="SLA performance gauge"
+              >
+                <div class="sla-gauge-arc" [style.background]="slaGaugeBackground">
+                  <div class="sla-gauge-inner">
+                    <span>SLA</span>
+                    <strong>{{ slaHealthPercent }}%</strong>
+                    <small>Performance</small>
+                  </div>
+                  <i class="sla-gauge-needle" [style.transform]="slaNeedleRotation"></i>
+                </div>
+
+                <div class="sla-gauge-footer">
+                  <span class="gauge-pill" [attr.data-status]="slaHealthStatusTone">
+                    <mat-icon>{{ slaHealthStatusIcon }}</mat-icon>
+                    {{ slaHealthStatusLabel }}
+                  </span>
+                  <small>{{ slaGaugeCaption }}</small>
+                </div>
+              </section>
+
+              <section class="sla-metric-stack" aria-label="SLA metric rows">
+                <article
+                  class="sla-metric-row"
+                  *ngFor="let metric of slaCockpitMetrics"
+                  [attr.data-tone]="metric.tone"
+                >
+                  <span class="metric-icon"><mat-icon>{{ metric.icon }}</mat-icon></span>
+                  <div class="metric-copy">
+                    <strong>{{ metric.label }}</strong>
+                    <span>{{ metric.helper }}</span>
+                  </div>
+                  <div class="metric-value">
+                    <strong>{{ metric.value }}</strong>
+                    <small>{{ metric.meta }}</small>
+                  </div>
+                  <span class="metric-sparkline" aria-hidden="true">
+                    <i></i><i></i><i></i><i></i><i></i><i></i>
+                  </span>
+                </article>
+              </section>
+            </div>
+
+            <section class="technician-sla-board">
+              <div class="tech-board-header">
+                <div>
+                  <span class="panel-eyebrow">Technician visibility</span>
+                  <h3>{{ technicianSlaBoardTitle }}</h3>
+                </div>
+                <p>{{ technicianSlaBoardSubtitle }}</p>
+              </div>
+
+              <div *ngIf="slaIntelligence.technicianPerformance.length === 0" class="mini-empty-state">
+                No technician SLA completions yet. Completed work orders will appear here once SLA clocks finish.
+              </div>
+
+              <div class="tech-sla-grid" *ngIf="slaIntelligence.technicianPerformance.length > 0">
+                <article
+                  class="tech-sla-card"
+                  *ngFor="let item of slaIntelligence.technicianPerformance; trackBy: trackTechnicianSla"
+                  [attr.data-tone]="getTechnicianSlaTone(item)"
+                >
+                  <div class="tech-sla-topline">
+                    <span class="tech-avatar">{{ getTechnicianInitials(item.technicianName) }}</span>
+                    <div>
+                      <strong>{{ item.technicianName }}</strong>
+                      <small>{{ getTechnicianSlaStatusLabel(item) }}</small>
+                    </div>
+                  </div>
+
+                  <div class="tech-compliance-row">
+                    <strong>{{ item.compliancePercent | number: '1.0-1' }}%</strong>
+                    <span>SLA compliant</span>
+                  </div>
+
+                  <div class="tech-progress" aria-hidden="true">
+                    <span [style.width.%]="boundedPercent(item.compliancePercent)"></span>
+                  </div>
+
+                  <div class="tech-sla-stats">
+                    <span><strong>{{ item.completedCount }}</strong> completed</span>
+                    <span><strong>{{ item.withinSlaCount }}</strong> within SLA</span>
+                    <span><strong>{{ item.breachedCount }}</strong> breached</span>
+                    <span><strong>{{ formatDuration(item.averageCompletionMinutes) }}</strong> avg.</span>
+                  </div>
+                </article>
+              </div>
+            </section>
+          </ng-container>
         </mat-card>
 
         <div class="details-grid">
@@ -813,17 +928,6 @@ type DashboardTechnicianWorkloadResponse =
       gap: 14px;
       grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
     }
-
-    .sla-intelligence-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); }
-    .sla-kpi { padding: 16px; display: grid; grid-template-columns: auto 1fr; gap: 2px 11px; align-items: center; border-radius: var(--radius-md); border: 1px solid var(--border); box-shadow: var(--shadow-xs); background: var(--surface); }
-    .sla-kpi mat-icon { grid-row: 1 / 3; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 11px; color: var(--info); background: var(--info-soft); font-size: 20px; }
-    .sla-kpi strong { font-size: 1.25rem; color: var(--text-strong); line-height: 1.2; }
-    .sla-kpi span { font-size: .7rem; color: var(--text-muted); }
-    .sla-kpi.near mat-icon { color: var(--warning); background: var(--warning-soft); }
-    .sla-kpi.breached mat-icon { color: var(--danger); background: var(--danger-soft); }
-    .sla-kpi.met mat-icon { color: var(--success); background: var(--success-soft); }
-    .sla-performance-row { display: grid; grid-template-columns: 1.4fr repeat(3, 1fr); gap: 12px; padding: 13px 2px; border-bottom: 1px solid var(--border); color: var(--text-muted); font-size: .78rem; }
-    .sla-performance-row strong { color: var(--text-strong); }
 
     .stat-card {
       --tone: var(--primary);
@@ -1338,9 +1442,32 @@ type DashboardTechnicianWorkloadResponse =
       .grid-container,
       .analytics-grid,
       .details-grid,
+      .sla-cockpit-grid,
       .sla-columns,
       .heatmap-grid {
         grid-template-columns: 1fr;
+      }
+
+      .sla-cockpit-card {
+        padding: 17px;
+      }
+
+      .sla-cockpit-header,
+      .tech-board-header {
+        flex-direction: column;
+      }
+
+      .sla-metric-row {
+        grid-template-columns: auto minmax(0, 1fr);
+      }
+
+      .metric-value {
+        justify-items: start;
+        text-align: left;
+      }
+
+      .metric-sparkline {
+        display: none;
       }
 
       .heatmap-header {
@@ -1379,6 +1506,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   slaIntelligence: DashboardSlaIntelligence | null = null;
   slaLoading = false;
   slaLoadError = false;
+  slaIntelligenceLoading = false;
+  slaIntelligenceLoadError = false;
 
   readonly statusChartOptions: ChartOptions<'pie'> = {
     responsive: true,
@@ -1578,9 +1707,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   loadSlaIntelligence(): void {
+    this.slaIntelligenceLoading = true;
+    this.slaIntelligenceLoadError = false;
+
     this.api.get<DashboardSlaIntelligence>('dashboard/sla-intelligence').subscribe({
-      next: (res) => this.slaIntelligence = res,
-      error: (error: HttpErrorResponse) => this.logDashboardApiError('SLA intelligence', error)
+      next: (res) => {
+        this.slaIntelligence = res;
+        this.slaIntelligenceLoading = false;
+      },
+      error: (error: HttpErrorResponse) => {
+        this.slaIntelligence = null;
+        this.slaIntelligenceLoading = false;
+        this.slaIntelligenceLoadError = true;
+        this.logDashboardApiError('SLA intelligence', error);
+      }
     });
   }
 
@@ -1598,6 +1738,38 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const hours = Math.floor(value / 60);
     const minutes = value % 60;
     return hours ? `${hours}h ${minutes}m` : `${minutes}m`;
+  }
+
+  private durationTone(
+    value: number | null | undefined,
+    warningThresholdMinutes: number,
+    dangerThresholdMinutes: number
+  ): SlaMetricTone {
+    if (value == null) {
+      return 'info';
+    }
+
+    if (value >= dangerThresholdMinutes) {
+      return 'danger';
+    }
+
+    return value >= warningThresholdMinutes ? 'warning' : 'success';
+  }
+
+  private percentTone(value: number | null): SlaMetricTone {
+    if (value == null) {
+      return 'info';
+    }
+
+    if (value >= 90) {
+      return 'success';
+    }
+
+    return value >= 75 ? 'warning' : 'danger';
+  }
+
+  private formatPercent(value: number): string {
+    return Number.isInteger(value) ? `${value}` : value.toFixed(1);
   }
 
   loadAnalytics(): void {
@@ -2175,7 +2347,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   get isRefreshing(): boolean {
-    return this.loading || this.activityLoading || this.analyticsLoading || this.workloadLoading || this.slaLoading;
+    return this.loading
+      || this.activityLoading
+      || this.analyticsLoading
+      || this.workloadLoading
+      || this.slaLoading
+      || this.slaIntelligenceLoading;
   }
 
   get isTechDashboard(): boolean {
@@ -2199,6 +2376,221 @@ export class DashboardComponent implements OnInit, OnDestroy {
       return 'My field workspace';
     }
     return this.auth.isDispatch() ? 'Dispatch command center' : 'Administration overview';
+  }
+
+  get showSlaCockpit(): boolean {
+    return this.slaIntelligenceLoading || this.slaIntelligenceLoadError || this.slaIntelligence !== null;
+  }
+
+  get slaCockpitTitle(): string {
+    return this.isTechDashboard ? 'My SLA Metrics' : 'SLA Metrics';
+  }
+
+  get slaCockpitSubtitle(): string {
+    return this.isTechDashboard
+      ? 'Response, embark, and completion clocks across your assigned work'
+      : 'Response, resolution, compliance, and technician SLA visibility for dispatch decisions';
+  }
+
+  get slaCompletionTotal(): number {
+    if (!this.slaIntelligence) {
+      return 0;
+    }
+
+    return this.slaIntelligence.completedWithinSlaCount + this.slaIntelligence.completedBreachedCount;
+  }
+
+  get slaCompliancePercent(): number | null {
+    const total = this.slaCompletionTotal;
+
+    if (!this.slaIntelligence || total === 0) {
+      return null;
+    }
+
+    return Math.round((this.slaIntelligence.completedWithinSlaCount / total) * 1000) / 10;
+  }
+
+  get slaHealthPercent(): number {
+    const compliance = this.slaCompliancePercent ?? 100;
+    const activeBreachPenalty = Math.min(42, (this.slaIntelligence?.breachedActiveCount ?? 0) * 12);
+    const nearBreachPenalty = Math.min(18, (this.slaIntelligence?.nearBreachCount ?? 0) * 5);
+    const overduePenalty = Math.min(18, (this.slaSummary?.overdueCount ?? 0) * 2);
+
+    return this.boundedPercent(Math.round(compliance - activeBreachPenalty - nearBreachPenalty - overduePenalty));
+  }
+
+  get slaHealthStatusTone(): SlaMetricTone {
+    if (this.slaHealthPercent >= 85) {
+      return 'success';
+    }
+
+    return this.slaHealthPercent >= 65 ? 'warning' : 'danger';
+  }
+
+  get slaHealthStatusLabel(): string {
+    switch (this.slaHealthStatusTone) {
+      case 'success':
+        return 'On track';
+      case 'warning':
+        return 'Needs watch';
+      default:
+        return 'At risk';
+    }
+  }
+
+  get slaHealthStatusIcon(): string {
+    switch (this.slaHealthStatusTone) {
+      case 'success':
+        return 'verified';
+      case 'warning':
+        return 'radar';
+      default:
+        return 'report_problem';
+    }
+  }
+
+  get slaGaugeBackground(): string {
+    const score = this.slaHealthPercent;
+    const color = this.slaHealthStatusTone === 'success'
+      ? '#22c55e'
+      : this.slaHealthStatusTone === 'warning'
+        ? '#f59e0b'
+        : '#ef4444';
+
+    return `conic-gradient(from 225deg, ${color} 0 ${score}%, rgba(148, 210, 255, .16) ${score}% 100%)`;
+  }
+
+  get slaNeedleRotation(): string {
+    const degrees = -132 + (this.slaHealthPercent * 2.64);
+    return `rotate(${degrees}deg)`;
+  }
+
+  get slaGaugeCaption(): string {
+    if (!this.slaIntelligence) {
+      return 'SLA clocks are waiting for live service data.';
+    }
+
+    if (this.slaCompletionTotal === 0) {
+      return 'No completed SLA samples yet; active risk is still monitored.';
+    }
+
+    const completedLabel = `${this.slaIntelligence.completedWithinSlaCount}/${this.slaCompletionTotal} completed within SLA`;
+    const breachLabel = `${this.slaIntelligence.breachedActiveCount} active breach${this.slaIntelligence.breachedActiveCount === 1 ? '' : 'es'}`;
+    return `${completedLabel}; ${breachLabel}.`;
+  }
+
+  get slaCockpitMetrics(): SlaCockpitMetric[] {
+    if (!this.slaIntelligence) {
+      return [];
+    }
+
+    const total = this.slaCompletionTotal;
+    const compliance = this.slaCompliancePercent;
+
+    return [
+      {
+        icon: 'assignment_turned_in',
+        label: 'Response time',
+        value: this.formatDuration(this.slaIntelligence.averageTimeToAssignMinutes),
+        helper: 'Average created-to-assigned dispatch clock',
+        meta: 'Dispatch',
+        tone: this.durationTone(this.slaIntelligence.averageTimeToAssignMinutes, 60, 240)
+      },
+      {
+        icon: 'departure_board',
+        label: 'Embark time',
+        value: this.formatDuration(this.slaIntelligence.averageTimeToStartMinutes),
+        helper: 'Average assignment-to-travel/start clock',
+        meta: 'Field start',
+        tone: this.durationTone(this.slaIntelligence.averageTimeToStartMinutes, 90, 300)
+      },
+      {
+        icon: 'verified',
+        label: 'SLA compliance',
+        value: compliance == null ? 'No data' : `${this.formatPercent(compliance)}%`,
+        helper: total === 0
+          ? 'Awaiting completed SLA samples'
+          : `${this.slaIntelligence.completedWithinSlaCount}/${total} completed within SLA`,
+        meta: 'Completed',
+        tone: this.percentTone(compliance)
+      },
+      {
+        icon: 'warning',
+        label: 'Active risk',
+        value: `${this.slaIntelligence.breachedActiveCount}`,
+        helper: `${this.slaIntelligence.nearBreachCount} near breach in the next SLA window`,
+        meta: 'Live queue',
+        tone: this.activeRiskTone
+      },
+      {
+        icon: 'timer',
+        label: 'Resolution time',
+        value: this.formatDuration(this.slaIntelligence.averageTimeToCompleteMinutes),
+        helper: 'Average execution completion duration',
+        meta: 'Resolution',
+        tone: this.durationTone(this.slaIntelligence.averageTimeToCompleteMinutes, 480, 1440)
+      }
+    ];
+  }
+
+  get activeRiskTone(): SlaMetricTone {
+    if ((this.slaIntelligence?.breachedActiveCount ?? 0) > 0) {
+      return 'danger';
+    }
+
+    return (this.slaIntelligence?.nearBreachCount ?? 0) > 0 ? 'warning' : 'success';
+  }
+
+  get technicianSlaBoardTitle(): string {
+    return this.isTechDashboard ? 'My SLA scorecard' : 'Technician SLA scorecard';
+  }
+
+  get technicianSlaBoardSubtitle(): string {
+    return this.isTechDashboard
+      ? 'Your completed work-order SLA outcomes in one portfolio-ready card.'
+      : 'Ranked completion, breach, and average resolution visibility for admin and dispatch.';
+  }
+
+  boundedPercent(value: number | null | undefined): number {
+    if (value == null || Number.isNaN(value)) {
+      return 0;
+    }
+
+    return Math.max(0, Math.min(100, value));
+  }
+
+  getTechnicianSlaTone(item: DashboardTechnicianSlaPerformance): SlaMetricTone {
+    if (item.compliancePercent >= 90) {
+      return 'success';
+    }
+
+    return item.compliancePercent >= 75 ? 'warning' : 'danger';
+  }
+
+  getTechnicianSlaStatusLabel(item: DashboardTechnicianSlaPerformance): string {
+    switch (this.getTechnicianSlaTone(item)) {
+      case 'success':
+        return 'Reliable SLA performer';
+      case 'warning':
+        return 'Watch response windows';
+      default:
+        return 'Needs SLA attention';
+    }
+  }
+
+  getTechnicianInitials(name: string | null | undefined): string {
+    if (!name?.trim()) {
+      return 'T';
+    }
+
+    const parts = name.trim().split(/\s+/);
+    return parts.length >= 2
+      ? `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+      : parts[0].substring(0, 2).toUpperCase();
+  }
+
+  trackTechnicianSla(_index: number, item: DashboardTechnicianSlaPerformance): number {
+    return item.technicianId;
   }
 
   get dueTodayCardLabel(): string {

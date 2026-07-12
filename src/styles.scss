@@ -211,3 +211,418 @@ button, input, select, textarea { font: inherit; }
 .mat-mdc-snack-bar-container.snackbar-warn .mdc-button__label {
   color: #111827 !important;
 }
+
+/* Sprint 12 SLA cockpit: Figma-inspired dashboard section fed by existing dashboard APIs. */
+.dashboard-page .sla-cockpit-card {
+  padding: 22px;
+  border: 1px solid rgba(37, 99, 235, .16);
+  border-radius: var(--radius-xl);
+  background:
+    radial-gradient(circle at 16% 18%, rgba(14, 165, 233, .14), transparent 32%),
+    radial-gradient(circle at 92% 4%, rgba(124, 58, 237, .12), transparent 28%),
+    linear-gradient(135deg, #071827 0%, #10213a 48%, #071525 100%);
+  color: #eaf6ff;
+  box-shadow: 0 24px 60px rgba(4, 19, 35, .22);
+  overflow: hidden;
+}
+
+.dashboard-page .sla-cockpit-header,
+.dashboard-page .tech-board-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.dashboard-page .sla-cockpit-header h2,
+.dashboard-page .tech-board-header h3 {
+  margin: 2px 0 4px;
+  color: #fff;
+  letter-spacing: -.035em;
+}
+
+.dashboard-page .sla-cockpit-header h2 { font-size: clamp(1.45rem, 2.5vw, 2.2rem); }
+.dashboard-page .sla-cockpit-card .panel-eyebrow { color: #67e8f9; }
+.dashboard-page .sla-cockpit-card .panel-subtitle,
+.dashboard-page .tech-board-header p { color: rgba(226, 244, 255, .68); }
+
+.dashboard-page .sla-status-pill,
+.dashboard-page .gauge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: rgba(255,255,255,.07);
+  color: #c8f7dc;
+  font-size: .72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .055em;
+  box-shadow: inset 0 1px rgba(255,255,255,.08);
+}
+
+.dashboard-page .sla-status-pill mat-icon,
+.dashboard-page .gauge-pill mat-icon {
+  width: 17px;
+  height: 17px;
+  font-size: 17px;
+}
+
+.dashboard-page .sla-status-pill[data-status='warning'],
+.dashboard-page .gauge-pill[data-status='warning'] { color: #fde68a; }
+.dashboard-page .sla-status-pill[data-status='danger'],
+.dashboard-page .gauge-pill[data-status='danger'] { color: #fecaca; }
+
+.dashboard-page .cockpit-loading {
+  min-height: 240px;
+  color: rgba(226, 244, 255, .78);
+}
+
+.dashboard-page .sla-cockpit-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, .9fr) minmax(360px, 1.4fr);
+  gap: 18px;
+  align-items: stretch;
+}
+
+.dashboard-page .sla-gauge-card,
+.dashboard-page .sla-metric-row,
+.dashboard-page .technician-sla-board {
+  border: 1px solid rgba(148, 210, 255, .16);
+  background: rgba(5, 16, 31, .56);
+  box-shadow: inset 0 1px rgba(255,255,255,.06), 0 18px 36px rgba(0,0,0,.16);
+}
+
+.dashboard-page .sla-gauge-card {
+  display: grid;
+  place-items: center;
+  gap: 16px;
+  min-height: 294px;
+  padding: 22px;
+  border-radius: 28px;
+}
+
+.dashboard-page .sla-gauge-arc {
+  position: relative;
+  width: min(100%, 270px);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  filter: drop-shadow(0 18px 38px rgba(34, 211, 238, .08));
+}
+
+.dashboard-page .sla-gauge-arc::before {
+  content: '';
+  position: absolute;
+  inset: 14%;
+  border-radius: 50%;
+  background: linear-gradient(145deg, rgba(5, 16, 31, .96), rgba(17, 34, 58, .98));
+  box-shadow: inset 0 0 28px rgba(0,0,0,.28);
+}
+
+.dashboard-page .sla-gauge-inner {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  text-align: center;
+}
+
+.dashboard-page .sla-gauge-inner span {
+  color: rgba(255,255,255,.88);
+  font-size: 1.8rem;
+  font-weight: 900;
+  letter-spacing: -.04em;
+}
+
+.dashboard-page .sla-gauge-inner strong {
+  color: #22c55e;
+  font-size: clamp(2.45rem, 6vw, 4rem);
+  line-height: .95;
+  text-shadow: 0 0 24px rgba(34,197,94,.22);
+}
+
+.dashboard-page .sla-gauge-card[data-status='warning'] .sla-gauge-inner strong {
+  color: #fbbf24;
+  text-shadow: 0 0 24px rgba(251,191,36,.2);
+}
+
+.dashboard-page .sla-gauge-card[data-status='danger'] .sla-gauge-inner strong {
+  color: #fb7185;
+  text-shadow: 0 0 24px rgba(251,113,133,.18);
+}
+
+.dashboard-page .sla-gauge-inner small {
+  color: rgba(226, 244, 255, .66);
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.dashboard-page .sla-gauge-needle {
+  position: absolute;
+  z-index: 2;
+  top: 49%;
+  left: 50%;
+  width: 37%;
+  height: 5px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #60a5fa, #22d3ee);
+  transform-origin: 0 50%;
+  box-shadow: 0 0 18px rgba(34,211,238,.45);
+}
+
+.dashboard-page .sla-gauge-needle::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  border: 3px solid #bae6fd;
+  border-radius: 50%;
+  background: #0f172a;
+  transform: translateY(-50%);
+}
+
+.dashboard-page .sla-gauge-footer {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.dashboard-page .sla-gauge-footer small { color: rgba(226, 244, 255, .62); }
+.dashboard-page .sla-metric-stack { display: grid; gap: 10px; }
+
+.dashboard-page .sla-metric-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(76px, 104px);
+  align-items: center;
+  gap: 14px;
+  min-height: 70px;
+  padding: 12px 14px;
+  border-radius: 18px;
+}
+
+.dashboard-page .metric-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: linear-gradient(135deg, #2563eb, #0ea5e9);
+  box-shadow: 0 10px 24px rgba(37,99,235,.2);
+}
+
+.dashboard-page .sla-metric-row[data-tone='success'] .metric-icon { background: linear-gradient(135deg, #16a34a, #22c55e); }
+.dashboard-page .sla-metric-row[data-tone='warning'] .metric-icon { background: linear-gradient(135deg, #f59e0b, #fb923c); }
+.dashboard-page .sla-metric-row[data-tone='danger'] .metric-icon { background: linear-gradient(135deg, #ef4444, #f97316); }
+.dashboard-page .metric-icon mat-icon { font-size: 22px; width: 22px; height: 22px; }
+
+.dashboard-page .metric-copy,
+.dashboard-page .metric-value {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dashboard-page .metric-copy strong {
+  color: #f8fbff;
+  font-size: .88rem;
+  letter-spacing: -.01em;
+}
+
+.dashboard-page .metric-copy span,
+.dashboard-page .metric-value small {
+  color: rgba(226, 244, 255, .62);
+  font-size: .68rem;
+}
+
+.dashboard-page .metric-value {
+  justify-items: end;
+  text-align: right;
+}
+
+.dashboard-page .metric-value strong {
+  color: #4ade80;
+  font-size: 1.28rem;
+  line-height: 1;
+}
+
+.dashboard-page .sla-metric-row[data-tone='warning'] .metric-value strong { color: #fbbf24; }
+.dashboard-page .sla-metric-row[data-tone='danger'] .metric-value strong { color: #fb7185; }
+.dashboard-page .sla-metric-row[data-tone='info'] .metric-value strong { color: #38bdf8; }
+
+.dashboard-page .metric-sparkline {
+  height: 30px;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  align-items: end;
+  gap: 4px;
+  opacity: .88;
+}
+
+.dashboard-page .metric-sparkline i {
+  display: block;
+  width: 100%;
+  min-width: 4px;
+  border-radius: 999px;
+  background: currentColor;
+  color: #22d3ee;
+}
+
+.dashboard-page .metric-sparkline i:nth-child(1) { height: 34%; opacity: .5; }
+.dashboard-page .metric-sparkline i:nth-child(2) { height: 48%; opacity: .65; }
+.dashboard-page .metric-sparkline i:nth-child(3) { height: 42%; opacity: .6; }
+.dashboard-page .metric-sparkline i:nth-child(4) { height: 62%; opacity: .75; }
+.dashboard-page .metric-sparkline i:nth-child(5) { height: 55%; opacity: .7; }
+.dashboard-page .metric-sparkline i:nth-child(6) { height: 84%; opacity: .95; }
+
+.dashboard-page .technician-sla-board {
+  margin-top: 18px;
+  padding: 17px;
+  border-radius: 24px;
+}
+
+.dashboard-page .tech-board-header { margin-bottom: 14px; }
+.dashboard-page .tech-board-header h3 { font-size: 1.12rem; }
+.dashboard-page .tech-board-header p {
+  max-width: 520px;
+  margin: 0;
+  font-size: .75rem;
+  text-align: right;
+}
+
+.dashboard-page .tech-sla-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+}
+
+.dashboard-page .tech-sla-card {
+  display: grid;
+  gap: 13px;
+  padding: 15px;
+  border: 1px solid rgba(148, 210, 255, .14);
+  border-radius: 18px;
+  background: rgba(255,255,255,.075);
+  box-shadow: inset 0 1px rgba(255,255,255,.08);
+}
+
+.dashboard-page .tech-sla-topline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dashboard-page .tech-avatar {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  color: #082f49;
+  background: linear-gradient(135deg, #e0f2fe, #67e8f9);
+  font-weight: 900;
+  box-shadow: 0 10px 22px rgba(14,165,233,.18);
+}
+
+.dashboard-page .tech-sla-topline div {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.dashboard-page .tech-sla-topline strong {
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-page .tech-sla-topline small {
+  color: rgba(226, 244, 255, .64);
+  font-size: .67rem;
+}
+
+.dashboard-page .tech-compliance-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.dashboard-page .tech-compliance-row strong {
+  color: #4ade80;
+  font-size: 1.7rem;
+  line-height: 1;
+}
+
+.dashboard-page .tech-sla-card[data-tone='warning'] .tech-compliance-row strong { color: #fbbf24; }
+.dashboard-page .tech-sla-card[data-tone='danger'] .tech-compliance-row strong { color: #fb7185; }
+.dashboard-page .tech-compliance-row span {
+  color: rgba(226, 244, 255, .66);
+  font-size: .7rem;
+  font-weight: 700;
+}
+
+.dashboard-page .tech-progress {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255,255,255,.12);
+}
+
+.dashboard-page .tech-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #22c55e, #67e8f9);
+  box-shadow: 0 0 18px rgba(34,197,94,.18);
+}
+
+.dashboard-page .tech-sla-card[data-tone='warning'] .tech-progress span { background: linear-gradient(90deg, #f59e0b, #facc15); }
+.dashboard-page .tech-sla-card[data-tone='danger'] .tech-progress span { background: linear-gradient(90deg, #ef4444, #fb7185); }
+
+.dashboard-page .tech-sla-stats {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, 1fr);
+  color: rgba(226, 244, 255, .66);
+  font-size: .68rem;
+}
+
+.dashboard-page .tech-sla-stats span {
+  display: grid;
+  gap: 1px;
+  padding: 8px;
+  border-radius: 12px;
+  background: rgba(255,255,255,.06);
+}
+
+.dashboard-page .tech-sla-stats strong {
+  color: #fff;
+  font-size: .86rem;
+}
+
+@media (max-width: 768px) {
+  .dashboard-page .sla-cockpit-card { padding: 17px; }
+  .dashboard-page .sla-cockpit-grid { grid-template-columns: 1fr; }
+  .dashboard-page .sla-cockpit-header,
+  .dashboard-page .tech-board-header { flex-direction: column; }
+  .dashboard-page .tech-board-header p { text-align: left; }
+  .dashboard-page .sla-metric-row { grid-template-columns: auto minmax(0, 1fr); }
+  .dashboard-page .metric-value {
+    justify-items: start;
+    text-align: left;
+  }
+  .dashboard-page .metric-sparkline { display: none; }
+}
