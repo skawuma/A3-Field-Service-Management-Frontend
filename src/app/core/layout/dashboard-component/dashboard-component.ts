@@ -2451,13 +2451,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   get slaGaugeBackground(): string {
     const score = this.slaHealthPercent;
-    const color = this.slaHealthStatusTone === 'success'
-      ? '#22c55e'
-      : this.slaHealthStatusTone === 'warning'
-        ? '#f59e0b'
-        : '#ef4444';
+    const color = '#38bdf8';
 
-    return `conic-gradient(from 225deg, ${color} 0 ${score}%, rgba(148, 210, 255, .16) ${score}% 100%)`;
+    return `conic-gradient(from 225deg, ${color} 0 ${score}%, rgba(186, 230, 253, .58) ${score}% 100%)`;
   }
 
   get slaNeedleRotation(): string {
