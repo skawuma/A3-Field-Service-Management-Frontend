@@ -367,15 +367,17 @@ The Docker setup is designed so the frontend can build and run cleanly in contai
 
 Important details:
 
-- API requests are routed through a frontend proxy or Nginx layer
+- In production, public HTTPS traffic reaches Caddy first
+- Caddy routes SPA paths to the Angular container and routes `/api/*` / `/ws*` to the Spring Boot backend
+- The Angular container still uses Nginx internally to serve the compiled static app
 - local font assets are bundled so production builds do not depend on Google Fonts at build time
 - this avoids certificate and network issues during container builds
 
 ```mermaid
 flowchart LR
-    Browser --> N[Nginx / Angular Container]
-    N --> API[/api proxy/]
-    API --> B[Spring Boot Backend]
+    Browser -->|HTTPS 443| C[Caddy Edge Proxy]
+    C -->|SPA routes| N[Angular Container<br/>Internal Nginx Static Server]
+    C -->|/api/* and /ws*| B[Spring Boot Backend]
 ```
 
 ## UX Principles
