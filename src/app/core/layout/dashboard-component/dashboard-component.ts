@@ -308,6 +308,7 @@ type DashboardTechnicianWorkloadResponse =
               <mat-icon>{{ slaIntelligence.nearBreachCount + slaIntelligence.breachedActiveCount > 0 ? 'warning' : 'check_circle' }}</mat-icon>
               {{ slaIntelligence.nearBreachCount + slaIntelligence.breachedActiveCount > 0 ? 'Needs attention' : 'On track' }}
             </span>
+            <span *ngIf="slaIntelligenceRefreshing" class="sla-refreshing" role="status">Updating…</span>
           </div>
 
           <div *ngIf="slaIntelligenceLoading" class="sla-command-state" role="status">
@@ -1429,6 +1430,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   slaLoading = false;
   slaLoadError = false;
   slaIntelligenceLoading = false;
+  slaIntelligenceRefreshing = false;
   slaIntelligenceError = false;
 
   get completedSlaCount(): number {
@@ -1637,17 +1639,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   loadSlaIntelligence(): void {
-    this.slaIntelligenceLoading = true;
+    this.slaIntelligenceLoading = !this.slaIntelligence;
+    this.slaIntelligenceRefreshing = !!this.slaIntelligence;
     this.slaIntelligenceError = false;
     this.api.get<DashboardSlaIntelligence>('dashboard/sla-intelligence').subscribe({
       next: (res) => {
         this.slaIntelligence = res;
         this.slaIntelligenceLoading = false;
+        this.slaIntelligenceRefreshing = false;
         this.lastUpdated = new Date();
       },
       error: (error: HttpErrorResponse) => {
         this.slaIntelligence = null;
         this.slaIntelligenceLoading = false;
+        this.slaIntelligenceRefreshing = false;
         this.slaIntelligenceError = true;
         this.logDashboardApiError('SLA intelligence', error);
       }
@@ -2249,7 +2254,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   get isRefreshing(): boolean {
-    return this.loading || this.activityLoading || this.analyticsLoading || this.workloadLoading || this.slaLoading;
+    return this.loading || this.activityLoading || this.analyticsLoading || this.workloadLoading
+      || this.slaLoading || this.slaIntelligenceLoading || this.slaIntelligenceRefreshing;
   }
 
   get isTechDashboard(): boolean {
