@@ -94,7 +94,7 @@ interface DashboardSlaIntelligence {
   averageTimeToAssignMinutes: number | null;
   averageTimeToStartMinutes: number | null;
   averageTimeToCompleteMinutes: number | null;
-  technicianPerformance: DashboardTechnicianSlaPerformance[];
+  technicianPerformance: DashboardTechnicianSlaPerformance[] | null;
 }
 
 interface DashboardTechnicianWorkloadItem {
