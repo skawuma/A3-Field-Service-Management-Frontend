@@ -271,10 +271,11 @@ button, input, select, textarea { font: inherit; }
     .sla-team-empty { color: #b8c2df; padding: 24px 0 5px; }
     .sla-team-row { padding: 14px 0; border-bottom: 1px solid #414978; }
     .sla-team-row:last-child { border-bottom: 0; padding-bottom: 0; }
+    .sla-team-row-heading > * { min-width: 0; overflow-wrap: anywhere; }
     .sla-team-row-heading strong { font-size: .84rem; }
     .sla-team-row-heading span { color: #d2dbf3; font-size: .76rem; text-align: right; }
     .sla-progress-track.small { height: 7px; margin-top: 9px; }
-    @container (max-width: 800px) {
+    @container (max-width: 960px) {
       .sla-command-grid { grid-template-columns: 1fr; }
       .sla-compliance-card { min-height: 205px; }
     }

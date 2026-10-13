@@ -334,7 +334,7 @@ type DashboardTechnicianWorkloadResponse =
                 <div *ngIf="completedSlaCount > 0; else noCompletedSla" class="sla-compliance-value">
                   {{ compliancePercent }}<small>%</small>
                 </div>
-                <ng-template #noCompletedSla><div class="sla-compliance-value empty">—</div></ng-template>
+                <ng-template #noCompletedSla><div class="sla-compliance-value empty" aria-hidden="true">—</div></ng-template>
                 <div *ngIf="completedSlaCount > 0" class="sla-progress-track" role="meter" aria-label="Completed work orders within SLA"
                   [attr.aria-valuenow]="compliancePercent" [attr.aria-valuetext]="sla.completedWithinSlaCount + ' of ' + completedSlaCount + ' completed within SLA'"
                   aria-valuemin="0" aria-valuemax="100">
@@ -368,10 +368,11 @@ type DashboardTechnicianWorkloadResponse =
 
             <div *ngIf="!isTechDashboard" class="sla-team-panel">
               <div class="sla-team-heading"><h3>Technician SLA scorecard</h3><span>Completed work orders</span></div>
-              <div *ngIf="sla.technicianPerformance.length === 0" class="sla-team-empty">No technician SLA results yet.</div>
-              <div *ngFor="let item of sla.technicianPerformance" class="sla-team-row">
-                <div class="sla-team-row-heading"><strong>{{ item.technicianName }}</strong><span>{{ technicianCompliancePercent(item) }}% · {{ item.withinSlaCount }}/{{ technicianCompletedSlaCount(item) }} within SLA</span></div>
-                <div class="sla-progress-track small" role="meter" [attr.aria-label]="item.technicianName + ' SLA compliance'"
+              <div *ngIf="(sla.technicianPerformance ?? []).length === 0" class="sla-team-empty">No technician SLA results yet.</div>
+              <div *ngFor="let item of sla.technicianPerformance ?? []" class="sla-team-row">
+                <div class="sla-team-row-heading"><strong>{{ item.technicianName }}</strong><span *ngIf="technicianCompletedSlaCount(item) > 0; else noTechnicianCompletedSla">{{ technicianCompliancePercent(item) }}% · {{ item.withinSlaCount }}/{{ technicianCompletedSlaCount(item) }} within SLA</span></div>
+                <ng-template #noTechnicianCompletedSla><span>No completed SLA work orders</span></ng-template>
+                <div *ngIf="technicianCompletedSlaCount(item) > 0" class="sla-progress-track small" role="meter" [attr.aria-label]="item.technicianName + ' SLA compliance'"
                   [attr.aria-valuenow]="technicianCompliancePercent(item)"
                   [attr.aria-valuetext]="item.withinSlaCount + ' of ' + technicianCompletedSlaCount(item) + ' completed within SLA'"
                   aria-valuemin="0" aria-valuemax="100">
@@ -1656,11 +1657,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const requestId = ++this.slaIntelligenceRequestId;
     this.slaIntelligenceLoading = !this.slaIntelligence;
     this.slaIntelligenceRefreshing = !!this.slaIntelligence;
-    this.slaIntelligenceError = false;
     this.api.get<DashboardSlaIntelligence>('dashboard/sla-intelligence').subscribe({
       next: (res) => {
         if (requestId !== this.slaIntelligenceRequestId) return;
         this.slaIntelligence = res;
+        this.slaIntelligenceError = false;
         this.slaIntelligenceLoading = false;
         this.slaIntelligenceRefreshing = false;
         this.slaLastSuccessAt = new Date();
