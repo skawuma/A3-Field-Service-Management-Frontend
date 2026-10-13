@@ -11,6 +11,7 @@ import { AuthService } from '../../services/auth-service';
 import { NotificationService } from '../../services/notification.service';
 import { RealtimeEventMessage, RealtimeEventMetadata } from '../../models/realtime-event.model';
 import { RealtimeService } from '../../services/realtime.service';
+import { summarizeCompletedSla } from './sla-performance';
 
 interface DashboardSummary {
   totalTechnicians: number;
@@ -295,24 +296,83 @@ type DashboardTechnicianWorkloadResponse =
           </mat-card>
         </div>
 
-        <div class="sla-intelligence-grid" *ngIf="slaIntelligence">
-          <mat-card class="sla-kpi near"><mat-icon>notifications_active</mat-icon><strong>{{ slaIntelligence.nearBreachCount }}</strong><span>Near Breach</span></mat-card>
-          <mat-card class="sla-kpi breached"><mat-icon>warning</mat-icon><strong>{{ slaIntelligence.breachedActiveCount }}</strong><span>Active Breached</span></mat-card>
-          <mat-card class="sla-kpi met"><mat-icon>verified</mat-icon><strong>{{ slaIntelligence.completedWithinSlaCount }}</strong><span>Completed Within SLA</span></mat-card>
-          <mat-card class="sla-kpi clock"><mat-icon>assignment_turned_in</mat-icon><strong>{{ formatDuration(slaIntelligence.averageTimeToAssignMinutes) }}</strong><span>Avg. Time to Assign</span></mat-card>
-          <mat-card class="sla-kpi clock"><mat-icon>departure_board</mat-icon><strong>{{ formatDuration(slaIntelligence.averageTimeToStartMinutes) }}</strong><span>Avg. Time to Embark</span></mat-card>
-          <mat-card class="sla-kpi clock"><mat-icon>timer</mat-icon><strong>{{ formatDuration(slaIntelligence.averageTimeToCompleteMinutes) }}</strong><span>Avg. Time to Complete</span></mat-card>
-        </div>
-
-        <mat-card class="panel-card" *ngIf="!isTechDashboard && slaIntelligence?.technicianPerformance?.length">
-          <div class="panel-header"><h3>Technician SLA Performance</h3><p class="panel-subtitle">Execution SLA results from completed work orders</p></div>
-          <div class="sla-performance-row" *ngFor="let item of slaIntelligence!.technicianPerformance">
-            <strong>{{ item.technicianName }}</strong>
-            <span>{{ item.compliancePercent }}% compliant</span>
-            <span>{{ item.withinSlaCount }}/{{ item.completedCount }} within SLA</span>
-            <span>{{ formatDuration(item.averageCompletionMinutes) }} average</span>
+        <section class="sla-command-panel" aria-labelledby="sla-command-title">
+          <div class="sla-command-header">
+            <div>
+              <span class="sla-command-eyebrow">Execution SLA</span>
+              <h2 id="sla-command-title">SLA performance</h2>
+              <p>Live deadline risk and results from completed work orders</p>
+            </div>
+            <span *ngIf="slaIntelligence" class="sla-health"
+              [class.risk]="slaIntelligence.nearBreachCount + slaIntelligence.breachedActiveCount > 0">
+              <mat-icon>{{ slaIntelligence.nearBreachCount + slaIntelligence.breachedActiveCount > 0 ? 'warning' : 'check_circle' }}</mat-icon>
+              {{ slaIntelligence.nearBreachCount + slaIntelligence.breachedActiveCount > 0 ? 'Needs attention' : 'On track' }}
+            </span>
           </div>
-        </mat-card>
+
+          <div *ngIf="slaIntelligenceLoading" class="sla-command-state" role="status">
+            <mat-progress-spinner diameter="32" mode="indeterminate"></mat-progress-spinner>
+            <span>Loading SLA performance…</span>
+          </div>
+          <div *ngIf="!slaIntelligenceLoading && slaIntelligenceError" class="sla-command-state" role="alert">
+            <mat-icon>cloud_off</mat-icon>
+            <span>SLA performance is unavailable.</span>
+            <button mat-stroked-button type="button" (click)="loadSlaIntelligence()">Try again</button>
+          </div>
+
+          <ng-container *ngIf="!slaIntelligenceLoading && !slaIntelligenceError && slaIntelligence as sla">
+            <div class="sla-command-grid">
+              <div class="sla-compliance-card">
+                <span class="sla-card-kicker">Completed work orders</span>
+                <h3>SLA targets achieved</h3>
+                <div *ngIf="completedSlaCount > 0; else noCompletedSla" class="sla-compliance-value">
+                  {{ compliancePercent }}<small>%</small>
+                </div>
+                <ng-template #noCompletedSla><div class="sla-compliance-value empty">—</div></ng-template>
+                <div class="sla-progress-track" role="meter" aria-label="Completed work orders within SLA"
+                  [attr.aria-valuenow]="compliancePercent" aria-valuemin="0" aria-valuemax="100">
+                  <span [style.width.%]="compliancePercent"></span>
+                </div>
+                <p *ngIf="completedSlaCount > 0">{{ sla.completedWithinSlaCount }} of {{ completedSlaCount }} completed within SLA</p>
+                <p *ngIf="completedSlaCount === 0">No completed work orders with an SLA clock yet.</p>
+              </div>
+
+              <div class="sla-risk-grid">
+                <div class="sla-risk-card warning">
+                  <mat-icon>notifications_active</mat-icon>
+                  <div><strong>{{ sla.nearBreachCount }}</strong><span>Approaching breach</span><small>Active deadlines within 30 minutes</small></div>
+                </div>
+                <div class="sla-risk-card danger">
+                  <mat-icon>report_problem</mat-icon>
+                  <div><strong>{{ sla.breachedActiveCount }}</strong><span>Active breaches</span><small>Open execution clocks past due</small></div>
+                </div>
+                <div class="sla-risk-card success">
+                  <mat-icon>verified</mat-icon>
+                  <div><strong>{{ sla.completedWithinSlaCount }}</strong><span>Completed within SLA</span><small>{{ sla.completedBreachedCount }} completed after deadline</small></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sla-timing-grid" aria-label="Average SLA timing">
+              <div class="sla-timing-card"><mat-icon>assignment_turned_in</mat-icon><div><span>Time to assign</span><strong>{{ formatDuration(sla.averageTimeToAssignMinutes) }}</strong><small>Created to technician assignment</small></div></div>
+              <div class="sla-timing-card"><mat-icon>departure_board</mat-icon><div><span>Time to embark</span><strong>{{ formatDuration(sla.averageTimeToStartMinutes) }}</strong><small>Assignment to travel start</small></div></div>
+              <div class="sla-timing-card"><mat-icon>timer</mat-icon><div><span>Execution time</span><strong>{{ formatDuration(sla.averageTimeToCompleteMinutes) }}</strong><small>Travel start to completion</small></div></div>
+            </div>
+
+            <div *ngIf="!isTechDashboard" class="sla-team-panel">
+              <div class="sla-team-heading"><h3>Technician SLA scorecard</h3><span>Completed work orders</span></div>
+              <div *ngIf="sla.technicianPerformance.length === 0" class="sla-team-empty">No technician SLA results yet.</div>
+              <div *ngFor="let item of sla.technicianPerformance" class="sla-team-row">
+                <div class="sla-team-row-heading"><strong>{{ item.technicianName }}</strong><span>{{ item.compliancePercent }}% · {{ item.withinSlaCount }}/{{ item.completedCount }} within SLA</span></div>
+                <div class="sla-progress-track small" role="meter" [attr.aria-label]="item.technicianName + ' SLA compliance'"
+                  [attr.aria-valuenow]="item.compliancePercent" aria-valuemin="0" aria-valuemax="100">
+                  <span [style.width.%]="item.compliancePercent" [class.low]="item.compliancePercent < 75"></span>
+                </div>
+                <small>Average execution {{ formatDuration(item.averageCompletionMinutes) }}</small>
+              </div>
+            </div>
+          </ng-container>
+        </section>
 
         <div class="details-grid">
           <mat-card class="panel-card">
@@ -813,17 +873,6 @@ type DashboardTechnicianWorkloadResponse =
       gap: 14px;
       grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
     }
-
-    .sla-intelligence-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); }
-    .sla-kpi { padding: 16px; display: grid; grid-template-columns: auto 1fr; gap: 2px 11px; align-items: center; border-radius: var(--radius-md); border: 1px solid var(--border); box-shadow: var(--shadow-xs); background: var(--surface); }
-    .sla-kpi mat-icon { grid-row: 1 / 3; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 11px; color: var(--info); background: var(--info-soft); font-size: 20px; }
-    .sla-kpi strong { font-size: 1.25rem; color: var(--text-strong); line-height: 1.2; }
-    .sla-kpi span { font-size: .7rem; color: var(--text-muted); }
-    .sla-kpi.near mat-icon { color: var(--warning); background: var(--warning-soft); }
-    .sla-kpi.breached mat-icon { color: var(--danger); background: var(--danger-soft); }
-    .sla-kpi.met mat-icon { color: var(--success); background: var(--success-soft); }
-    .sla-performance-row { display: grid; grid-template-columns: 1.4fr repeat(3, 1fr); gap: 12px; padding: 13px 2px; border-bottom: 1px solid var(--border); color: var(--text-muted); font-size: .78rem; }
-    .sla-performance-row strong { color: var(--text-strong); }
 
     .stat-card {
       --tone: var(--primary);
@@ -1379,6 +1428,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
   slaIntelligence: DashboardSlaIntelligence | null = null;
   slaLoading = false;
   slaLoadError = false;
+  slaIntelligenceLoading = false;
+  slaIntelligenceError = false;
+
+  get completedSlaCount(): number {
+    return summarizeCompletedSla(this.slaIntelligence).total;
+  }
+
+  get compliancePercent(): number {
+    return summarizeCompletedSla(this.slaIntelligence).percent;
+  }
 
   readonly statusChartOptions: ChartOptions<'pie'> = {
     responsive: true,
@@ -1578,9 +1637,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   loadSlaIntelligence(): void {
+    this.slaIntelligenceLoading = true;
+    this.slaIntelligenceError = false;
     this.api.get<DashboardSlaIntelligence>('dashboard/sla-intelligence').subscribe({
-      next: (res) => this.slaIntelligence = res,
-      error: (error: HttpErrorResponse) => this.logDashboardApiError('SLA intelligence', error)
+      next: (res) => {
+        this.slaIntelligence = res;
+        this.slaIntelligenceLoading = false;
+        this.lastUpdated = new Date();
+      },
+      error: (error: HttpErrorResponse) => {
+        this.slaIntelligence = null;
+        this.slaIntelligenceLoading = false;
+        this.slaIntelligenceError = true;
+        this.logDashboardApiError('SLA intelligence', error);
+      }
     });
   }
 
@@ -1685,6 +1755,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
       default:
         break;
+    }
+
+    if (['WORK_ORDER_ASSIGNED', 'WORK_ORDER_COMPLETED', 'WORK_ORDER_STATUS_CHANGED', 'WORK_ORDER_CREATED'].includes(event.type)) {
+      this.loadSlaIntelligence();
     }
 
     this.lastUpdated = new Date();

@@ -211,3 +211,72 @@ button, input, select, textarea { font: inherit; }
 .mat-mdc-snack-bar-container.snackbar-warn .mdc-button__label {
   color: #111827 !important;
 }
+
+/* Dashboard execution SLA overview */
+    .sla-command-panel {
+      padding: clamp(20px, 2.5vw, 32px);
+      border-radius: var(--radius-lg);
+      background: #171b3e;
+      color: #f1f5ff;
+      box-shadow: var(--shadow-md);
+    }
+    .sla-command-header, .sla-team-heading, .sla-team-row-heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .sla-command-header { margin-bottom: 20px; }
+    .sla-command-eyebrow, .sla-card-kicker { color: #7dd3fc; font-size: .72rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    .sla-command-header h2 { margin: 5px 0 4px; font-size: clamp(1.4rem, 2vw, 1.9rem); line-height: 1.2; }
+    .sla-command-header p { margin: 0; color: #b8c2df; font-size: .84rem; }
+    .sla-health { display: inline-flex; align-items: center; gap: 6px; flex: none; border-radius: 999px; padding: 7px 11px; color: #86efac; background: #173e38; font-size: .72rem; font-weight: 750; }
+    .sla-health.risk { color: #ffd2d6; background: #602b42; }
+    .sla-health mat-icon { font-size: 17px; width: 17px; height: 17px; }
+    .sla-command-state { min-height: 160px; display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 12px; color: #e6ebff; text-align: center; }
+    .sla-command-state button { color: #fff; border-color: #8da5d4; }
+    .sla-command-grid { display: grid; grid-template-columns: minmax(260px, 1.1fr) minmax(300px, 1.5fr); gap: 14px; }
+    .sla-compliance-card, .sla-risk-card, .sla-timing-card, .sla-team-panel { background: #282d59; border: 1px solid #414978; border-radius: 15px; }
+    .sla-compliance-card { display: flex; flex-direction: column; padding: 22px; min-height: 244px; box-sizing: border-box; }
+    .sla-compliance-card h3 { font-size: 1rem; margin: 6px 0 14px; font-weight: 650; }
+    .sla-compliance-value { font-size: clamp(3.3rem, 6vw, 5rem); font-weight: 800; line-height: 1; letter-spacing: -.045em; font-variant-numeric: tabular-nums; }
+    .sla-compliance-value small { font-size: .47em; margin-left: 2px; }
+    .sla-compliance-value.empty { color: #aab5d4; }
+    .sla-compliance-card p { color: #b8c2df; margin: 10px 0 0; font-size: .78rem; }
+    .sla-progress-track { width: 100%; height: 9px; border-radius: 99px; background: #464d7c; overflow: hidden; margin-top: auto; }
+    .sla-progress-track span { display: block; height: 100%; border-radius: inherit; background: #22d3ee; }
+    .sla-progress-track span.low { background: #fb7185; }
+    .sla-risk-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .sla-risk-card { padding: 17px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+    .sla-risk-card mat-icon { width: 35px; height: 35px; display: grid; place-items: center; border-radius: 10px; font-size: 20px; background: #484e76; }
+    .sla-risk-card.warning mat-icon { color: #fbbf24; }
+    .sla-risk-card.danger mat-icon { color: #fb7185; }
+    .sla-risk-card.success mat-icon { color: #4ade80; }
+    .sla-risk-card strong { display: block; font-size: clamp(2rem, 3vw, 2.8rem); line-height: 1.1; font-variant-numeric: tabular-nums; }
+    .sla-risk-card span { display: block; margin-top: 7px; font-size: .8rem; font-weight: 700; }
+    .sla-risk-card small, .sla-timing-card small, .sla-team-row small { display: block; color: #b8c2df; font-size: .7rem; line-height: 1.4; margin-top: 6px; }
+    .sla-timing-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
+    .sla-timing-card { display: flex; align-items: flex-start; gap: 12px; padding: 15px 17px; }
+    .sla-timing-card mat-icon { color: #7dd3fc; flex: none; }
+    .sla-timing-card span { display: block; font-size: .76rem; }
+    .sla-timing-card strong { display: block; margin-top: 5px; font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+    .sla-team-panel { margin-top: 14px; padding: 19px 22px; }
+    .sla-team-heading h3 { margin: 0; font-size: 1rem; }
+    .sla-team-heading > span { color: #b8c2df; font-size: .75rem; }
+    .sla-team-empty { color: #b8c2df; padding: 24px 0 5px; }
+    .sla-team-row { padding: 14px 0; border-bottom: 1px solid #414978; }
+    .sla-team-row:last-child { border-bottom: 0; padding-bottom: 0; }
+    .sla-team-row-heading strong { font-size: .84rem; }
+    .sla-team-row-heading span { color: #d2dbf3; font-size: .76rem; text-align: right; }
+    .sla-progress-track.small { height: 7px; margin-top: 9px; }
+    @media (max-width: 1100px) {
+      .sla-command-grid { grid-template-columns: 1fr; }
+      .sla-compliance-card { min-height: 205px; }
+    }
+    @media (max-width: 680px) {
+      .sla-command-header { flex-direction: column; }
+      .sla-risk-grid, .sla-timing-grid { grid-template-columns: 1fr; }
+      .sla-risk-card { flex-direction: row; align-items: flex-start; }
+      .sla-team-row-heading { flex-direction: column; gap: 4px; }
+      .sla-team-row-heading span { text-align: left; }
+    }
