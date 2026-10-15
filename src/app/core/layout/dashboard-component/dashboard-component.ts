@@ -324,7 +324,7 @@ type DashboardTechnicianWorkloadResponse =
             [attr.role]="slaIntelligence ? 'status' : 'alert'">
             <mat-icon>cloud_off</mat-icon>
             <span>{{ slaIntelligence ? 'Latest SLA refresh failed. Showing values from ' + (slaLastSuccessAt | date:'medium') + '.' : 'SLA performance is unavailable.' }}</span>
-            <button mat-stroked-button type="button" (click)="loadSlaIntelligence()">Try again</button>
+            <button mat-stroked-button type="button" [disabled]="slaIntelligenceRefreshing" (click)="loadSlaIntelligence()">Try again</button>
           </div>
 
           <ng-container *ngIf="!slaIntelligenceLoading && slaIntelligence as sla">
@@ -1565,7 +1565,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.refreshDashboard();
   }
 
-  ngOnDestroy(): void {}
+  ngOnDestroy(): void { this.slaRefresh.dispose(); }
 
   refreshDashboard(): void {
     this.recentActivity = [];

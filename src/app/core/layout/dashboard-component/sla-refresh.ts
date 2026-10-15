@@ -1,4 +1,4 @@
-import { Observable } from 'rxjs';
+import { Observable, Subscription } from 'rxjs';
 
 export class SlaRefresh<T> {
   value: T | null = null;
@@ -8,13 +8,15 @@ export class SlaRefresh<T> {
   lastSuccessAt: Date | null = null;
 
   private requestId = 0;
+  private active: Subscription | null = null;
 
   load(source: Observable<T>, onSuccess: (at: Date) => void, onError: (error: unknown) => void): void {
     const requestId = ++this.requestId;
+    this.active?.unsubscribe();
     this.loading = this.value === null;
     this.refreshing = this.value !== null;
 
-    source.subscribe({
+    this.active = source.subscribe({
       next: value => {
         if (requestId !== this.requestId) return;
         this.value = value;
@@ -32,5 +34,11 @@ export class SlaRefresh<T> {
         onError(error);
       }
     });
+  }
+
+  dispose(): void {
+    ++this.requestId;
+    this.active?.unsubscribe();
+    this.active = null;
   }
 }

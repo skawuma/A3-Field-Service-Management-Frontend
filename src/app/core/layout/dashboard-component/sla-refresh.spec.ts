@@ -21,6 +21,7 @@ describe('SLA refresh', () => {
   it('keeps the newer result when requests finish out of order', () => {
     const older = load();
     const newer = load();
+    expect(older.observers.length).toBe(0);
     newer.next(9);
     const successAt = refresh.lastSuccessAt;
     older.next(3);
@@ -73,5 +74,14 @@ describe('SLA refresh', () => {
     expect(refresh.lastSuccessAt).toBeNull();
     expect(refresh.loading).toBeFalse();
     expect(refresh.error).toBeTrue();
+  });
+
+  it('stops the in-flight request when disposed', () => {
+    const request = load();
+    refresh.dispose();
+    expect(request.observers.length).toBe(0);
+    request.next(9);
+    expect(refresh.value).toBeNull();
+    expect(success).not.toHaveBeenCalled();
   });
 });
