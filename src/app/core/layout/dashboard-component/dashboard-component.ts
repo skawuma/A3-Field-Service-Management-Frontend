@@ -13,6 +13,7 @@ import { NotificationService } from '../../services/notification.service';
 import { RealtimeEventMessage, RealtimeEventMetadata } from '../../models/realtime-event.model';
 import { RealtimeService } from '../../services/realtime.service';
 import { formatSlaDuration, summarizeCompletedSla } from './sla-performance';
+import { SlaRefresh } from './sla-refresh';
 
 interface DashboardSummary {
   totalTechnicians: number;
@@ -1436,14 +1437,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
   readonly completionTrendChartType: 'line' = 'line';
 
   slaSummary: DashboardSlaSummary | null = null;
-  slaIntelligence: DashboardSlaIntelligence | null = null;
+  private readonly slaRefresh = new SlaRefresh<DashboardSlaIntelligence>();
   slaLoading = false;
   slaLoadError = false;
-  slaIntelligenceLoading = false;
-  slaIntelligenceRefreshing = false;
-  slaIntelligenceError = false;
-  slaLastSuccessAt: Date | null = null;
-  private slaIntelligenceRequestId = 0;
+
+  get slaIntelligence(): DashboardSlaIntelligence | null { return this.slaRefresh.value; }
+  get slaIntelligenceLoading(): boolean { return this.slaRefresh.loading; }
+  get slaIntelligenceRefreshing(): boolean { return this.slaRefresh.refreshing; }
+  get slaIntelligenceError(): boolean { return this.slaRefresh.error; }
+  get slaLastSuccessAt(): Date | null { return this.slaRefresh.lastSuccessAt; }
 
   get completedSlaCount(): number {
     return summarizeCompletedSla(this.slaIntelligence).total;
@@ -1654,27 +1656,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   loadSlaIntelligence(): void {
-    const requestId = ++this.slaIntelligenceRequestId;
-    this.slaIntelligenceLoading = !this.slaIntelligence;
-    this.slaIntelligenceRefreshing = !!this.slaIntelligence;
-    this.api.get<DashboardSlaIntelligence>('dashboard/sla-intelligence').subscribe({
-      next: (res) => {
-        if (requestId !== this.slaIntelligenceRequestId) return;
-        this.slaIntelligence = res;
-        this.slaIntelligenceError = false;
-        this.slaIntelligenceLoading = false;
-        this.slaIntelligenceRefreshing = false;
-        this.slaLastSuccessAt = new Date();
-        this.lastUpdated = this.slaLastSuccessAt;
-      },
-      error: (error: HttpErrorResponse) => {
-        if (requestId !== this.slaIntelligenceRequestId) return;
-        this.slaIntelligenceLoading = false;
-        this.slaIntelligenceRefreshing = false;
-        this.slaIntelligenceError = true;
-        this.logDashboardApiError('SLA intelligence', error);
-      }
-    });
+    this.slaRefresh.load(
+      this.api.get<DashboardSlaIntelligence>('dashboard/sla-intelligence'),
+      at => { this.lastUpdated = at; },
+      error => this.logDashboardApiError('SLA intelligence', error as HttpErrorResponse)
+    );
   }
 
   private logDashboardApiError(resource: string, error: HttpErrorResponse): void {
